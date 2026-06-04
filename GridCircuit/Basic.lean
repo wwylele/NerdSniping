@@ -356,23 +356,15 @@ theorem φ_nonneg (x : Fin n → ℤ) : 0 ≤ φ x := by
 @[simp]
 theorem φ_reflect (x : Fin n → ℤ) (i : Fin n) : φ (Function.update x i (-x i)) = φ x := by
   unfold φ
-  let f : (Fin n → ℝ) → (Fin n → ℝ) := Pi.map fun j ↦ if j = i then (fun (x : ℝ) ↦ -x) else id
-  let f' (w : Fin n → ℝ) : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) :=
-    ContinuousLinearMap.piMap
+  let f : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) := ContinuousLinearMap.piMap
     fun j ↦ if j = i then -(ContinuousLinearMap.id _ _) else (ContinuousLinearMap.id _ _)
+  let f' (_ : Fin n → ℝ) : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) := f
   have hf' (w : Fin n → ℝ) (_ : w ∈ Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) :
-      HasFDerivWithinAt f (f' w) (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) w := by
-    apply HasFDerivAt.hasFDerivWithinAt
-    unfold f'
-    rw [ContinuousLinearMap.piMap, hasFDerivAt_pi]
-    intro j
-    by_cases h : j = i
-    · simp only [h, Pi.map_apply, ↓reduceIte, ContinuousLinearMap.neg_comp,
-        ContinuousLinearMap.id_comp]
-      exact (hasFDerivAt_apply i w).neg
-    · simpa [h] using hasFDerivAt_apply j w
+      HasFDerivWithinAt f (f' w) (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) w :=
+    f.hasFDerivAt.hasFDerivWithinAt
   have hset : Set.Icc (fun _ ↦ -π) (fun _ ↦ π) = f '' Set.Icc (fun _ ↦ -π) (fun _ ↦ π) := by
-    rw [← Set.pi_univ_Icc, Set.piMap_image_univ_pi]
+    unfold f
+    rw [ContinuousLinearMap.coe_piMap', ← Set.pi_univ_Icc, Set.piMap_image_univ_pi]
     congrm Set.univ.pi fun j ↦ ?_
     by_cases h : j = i <;> simp [h]
   have hinj : Set.InjOn f (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) := by
@@ -385,7 +377,7 @@ theorem φ_reflect (x : Fin n → ℤ) (i : Fin n) : φ (Function.update x i (-x
   have hdet (w : Fin n → ℝ) : (f' w).det = -1 := by
     suffices ∏ x, (if x = i then -ContinuousLinearMap.id ℝ ℝ else ContinuousLinearMap.id ℝ ℝ) 1
         = -1 by
-      simpa [f', ContinuousLinearMap.piMap, ContinuousLinearMap.det_pi]
+      simpa [f', f, ContinuousLinearMap.piMap, ContinuousLinearMap.det_pi]
     rw [← Finset.prod_erase_mul _ _ (Finset.mem_univ i)]
     convert (show (1 : ℝ) * -1 = -1 by simp)
     · refine Finset.prod_eq_one fun j hj ↦ ?_
@@ -400,6 +392,92 @@ theorem φ_reflect (x : Fin n → ℤ) (i : Fin n) : φ (Function.update x i (-x
   congr with j
   · by_cases h : j = i <;> simp [f, h]
   · by_cases h : j = i <;> simp [f, h]
+
+@[simp]
+theorem φ_neg (x : Fin n → ℤ) : φ (-x) = φ x := by
+  unfold φ
+  let f : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) :=
+    ContinuousLinearMap.piMap fun j ↦ -(ContinuousLinearMap.id _ _)
+  let f' (_ : Fin n → ℝ) : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) := f
+  have hf' (w : Fin n → ℝ) (_ : w ∈ Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) :
+      HasFDerivWithinAt f (f' w) (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) w :=
+    f.hasFDerivAt.hasFDerivWithinAt
+  have hset : Set.Icc (fun _ ↦ -π) (fun _ ↦ π) = f '' Set.Icc (fun _ ↦ -π) (fun _ ↦ π) := by
+    unfold f
+    rw [ContinuousLinearMap.coe_piMap', ← Set.pi_univ_Icc, Set.piMap_image_univ_pi]
+    congrm Set.univ.pi fun j ↦ ?_
+    simp
+  have hinj : Set.InjOn f (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) := by
+    apply Function.Injective.injOn
+    intro x y h
+    rw [funext_iff] at h
+    ext j
+    specialize h j
+    simpa [f] using h
+  have hdet (w : Fin n → ℝ) : |(f' w).det| = 1 := by
+    unfold f' f
+    rw [ContinuousLinearMap.det, ContinuousLinearMap.coe_piMap, LinearMap.piMap, LinearMap.det_pi]
+    simp
+  conv_lhs => rw [hset]
+  rw [integral_image_eq_integral_abs_det_fderiv_smul volume measurableSet_Icc hf' hinj]
+  simp_rw [hdet, one_smul]
+  simp [f]
+
+@[simp]
+theorem φ_perm (x : Fin n → ℤ) (p : Fin n ≃ Fin n) : φ (x ∘ p) = φ x := by
+  unfold φ
+  let f : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) :=
+    ContinuousLinearMap.pi fun j ↦ ContinuousLinearMap.proj (p j)
+  let f' (_ : Fin n → ℝ) : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) := f
+  have hf' (w : Fin n → ℝ) (_ : w ∈ Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) :
+      HasFDerivWithinAt f (f' w) (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) w :=
+    f.hasFDerivAt.hasFDerivWithinAt
+  have hset : Set.Icc (fun _ ↦ -π) (fun _ ↦ π) = f '' Set.Icc (fun _ ↦ -π) (fun _ ↦ π) := by
+    ext x
+    suffices (x ∈ Set.Icc (fun x ↦ -π) fun x ↦ π) ↔
+        ∃ w ∈ Set.Icc (fun x ↦ -π) fun x ↦ π, (fun i ↦ w (p i)) = x by
+      simpa [f]
+    simp_rw [← Set.pi_univ_Icc, Set.mem_univ_pi]
+    refine ⟨fun h ↦ ?_, fun ⟨y, hy, hyeq⟩ ↦ ?_⟩
+    · use x ∘ p.symm
+      simp only [Function.comp_apply, Equiv.symm_apply_apply, and_true]
+      intro j
+      exact h (p.symm j)
+    · rw [funext_iff] at hyeq
+      intro j
+      rw [← hyeq]
+      exact hy (p j)
+  have hinj : Set.InjOn f (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) := by
+    apply Function.Injective.injOn
+    intro a b h
+    rw [funext_iff] at ⊢ h
+    intro i
+    simpa [f] using h (p.symm i)
+  have hperm (w : Fin n → ℝ) : f' w = (Equiv.Perm.permMatrix ℝ p).toLin' := by
+    ext r j
+    simp [f', f]
+    by_cases h : p j = r <;> simp [h]
+  have hdet (w : Fin n → ℝ) : |(f' w).det| = 1 := by
+    rw [ContinuousLinearMap.det, hperm w, LinearMap.det_toLin', Matrix.det_permutation]
+    norm_cast
+    simp
+  conv_lhs => rw [hset]
+  rw [integral_image_eq_integral_abs_det_fderiv_smul volume measurableSet_Icc hf' hinj]
+  simp_rw [hdet, one_smul]
+  congr with w
+  congrm (1 - cos ?_) / ?_
+  · simp only [Function.comp_apply, ContinuousLinearMap.coe_pi', ContinuousLinearMap.proj_apply, f]
+    exact Finset.sum_equiv p (by simp) (by simp)
+  · simp only [ContinuousLinearMap.coe_pi', ContinuousLinearMap.proj_apply, f]
+    exact Finset.sum_equiv p (by simp) (by simp)
+
+theorem φ_single_perm (e e' : Fin n) (l : ℤ) :
+    φ (Pi.single e l) = φ (Pi.single e' l) := by
+  let p : Fin n ≃ Fin n := Equiv.swap e e'
+  have : Pi.single e l ∘ p = Pi.single e' l := by
+    rw [Pi.single_comp_equiv]
+    simp [p]
+  rw [← this, φ_perm]
 
 theorem bddBelow_φ : BddBelow (Set.range <| φ (n := n)) := by
   use 0
@@ -655,6 +733,34 @@ theorem φ_kirchhoff [NeZero n] (x : Fin n → ℤ) :
     exact Measure.ae_ne volume fun k ↦ z k * (2 * π)
   rw [integral_congr_ae (hcongr _)]
   rw [← fourier_unitCur]
+
+theorem φ_one_off_center (e : Fin n) : φ (Pi.single e 1) = (2 * n : ℝ)⁻¹ := by
+  have : NeZero n := e.neZero
+  apply eq_inv_of_mul_eq_one_right
+  simpa [φ_single_perm _ 0, ← two_mul, unitCur, ← mul_assoc] using φ_kirchhoff (n := n) 0
+
+theorem φ_one_dimensional_nat (x : ℕ) : φ ![x] = 2⁻¹ * x := by
+  induction x using Nat.twoStepInduction with
+  | zero => exact φ_zero.trans (by simp)
+  | one =>
+    refine Eq.trans ?_ ((φ_one_off_center (0 : Fin 1)).trans ?_)
+    · rfl
+    · simp
+  | more n h1 h2 =>
+    push_cast at ⊢ h2
+    conv_lhs => rw [← one_add_one_eq_two, ← add_assoc]
+    obtain h := φ_kirchhoff ![n + 1]
+    conv_rhs at h => rw [unitCur, Pi.single_eq_of_ne (by simp; grind)]
+    simp [Matrix.vecHead, h1, h2] at h
+    linear_combination h
+
+theorem φ_one_dimensional (x : ℤ) : φ ![x] = 2⁻¹ * |x| := by
+  obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg x
+  · simp [φ_one_dimensional_nat]
+  · trans φ (-![(n : ℤ)])
+    · simp
+    · rw [φ_neg, φ_one_dimensional_nat]
+      simp
 
 theorem isElectricPotential_φ [NeZero n] (a b : Fin n → ℤ) :
     IsElectricPotential (unitCur a - unitCur b) (fun x ↦ φ (x - a) - φ (x - b)) where
