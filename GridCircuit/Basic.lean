@@ -354,7 +354,7 @@ theorem φ_nonneg (x : Fin n → ℤ) : 0 ≤ φ x := by
     simpa using cos_le_one _
 
 @[simp]
-theorem φ_symmetry (x : Fin n → ℤ) (i : Fin n) : φ (Function.update x i (-x i)) = φ x := by
+theorem φ_reflect (x : Fin n → ℤ) (i : Fin n) : φ (Function.update x i (-x i)) = φ x := by
   unfold φ
   let f : (Fin n → ℝ) → (Fin n → ℝ) := Pi.map fun j ↦ if j = i then (fun (x : ℝ) ↦ -x) else id
   let f' (w : Fin n → ℝ) : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) :=
