@@ -1,6 +1,6 @@
 import Mathlib
 
-open Real MeasureTheory Filter Topology
+open Real MeasureTheory Filter Topology Asymptotics
 
 variable {n : ℕ}
 
@@ -422,6 +422,114 @@ theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
   grw [sin_inequality]
   apply le_of_eq
   ring
+
+theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
+    |φ x| ≤ (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
+    1 / ∑ i, (1 - Real.cos (w i)) := by
+  have : NeZero n := ⟨fun h ↦ by simp [h] at hn⟩
+  have hn1 : 1 ≤ n := le_trans (by simp) hn
+  have hn2 : 2 < n := lt_of_lt_of_le (by simp) hn
+  have hn2' : (2 : ℝ) < (Module.finrank ℝ (Fin n → ℝ)) := by
+    simpa using hn2
+  unfold φ
+  have hleft : 0 ≤ (2 * π)⁻¹ ^ n := by
+    apply pow_nonneg
+    simpa using pi_nonneg
+  rw [abs_mul, abs_of_nonneg hleft]
+  refine mul_le_mul_of_nonneg_left ?_ hleft
+  rw [← norm_eq_abs]
+  refine norm_integral_le_of_norm_le ?_ ?_
+  · conv in fun w ↦ _ =>
+      ext w
+      conv in fun i ↦ _ =>
+        ext i
+        rw [show w i = 2 * (w i / 2) by simp [mul_div]]
+        rw [cos_two_mul_eq_one_sub, sub_sub_cancel]
+      rw [← Finset.mul_sum, mul_comm, ← div_div]
+    apply Integrable.div_const
+    suffices (fun (w : Fin n → ℝ) ↦ 1 / ∑ i, sin (w i / 2) ^ 2) =O[nhds 0] (‖·‖ ^ (-2 : ℤ)) by
+      obtain ⟨c, hc⟩ := isBigO_iff.mp this
+      obtain ⟨r, hr0, hr⟩ := Metric.eventually_nhds_iff_ball.mp hc
+      simp_rw [norm_zpow, norm_norm, ← Real.rpow_intCast] at hr
+      push_cast at hr
+      rw [← IntegrableOn,
+        ← Set.inter_union_diff (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) (Metric.ball 0 r),
+        integrableOn_union]
+      constructor
+      · apply IntegrableOn.mono_set ?_ Set.inter_subset_right
+        apply integrableOn_ball_of_norm_le_rpow (by simpa using hn1) hn2'
+          (ae_restrict_of_forall_mem measurableSet_ball hr)
+        apply StronglyMeasurable.aestronglyMeasurable
+        fun_prop
+      · apply ContinuousOn.integrableOn_compact (IsCompact.diff isCompact_Icc Metric.isOpen_ball)
+        apply ContinuousOn.div₀ (by fun_prop) (by fun_prop)
+        intro x hx
+        obtain ⟨⟨hleft, hright⟩, hball⟩ : ((fun x ↦ -π) ≤ x ∧ x ≤ fun x ↦ π) ∧ r ≤ ‖x‖ := by
+          simpa using hx
+        contrapose! hball with hsum
+        suffices x = 0 by simpa [this] using hr0
+        rw [Finset.sum_eq_zero_iff_of_nonneg (fun j _ ↦ sq_nonneg _)] at hsum
+        ext i
+        specialize hsum i (Finset.mem_univ i)
+        specialize hleft i
+        specialize hright i
+        rw [sq_eq_zero_iff, sin_eq_zero_iff_of_lt_of_lt ?_ ?_] at hsum
+        · simpa using hsum
+        · rw [lt_div_iff₀ (by simp)]
+          refine lt_of_lt_of_le ?_ hleft
+          simp [mul_two, pi_pos]
+        · rw [div_lt_iff₀ (by simp)]
+          refine lt_of_le_of_lt hright ?_
+          simp [mul_two, pi_pos]
+    simp_rw [← inv_eq_one_div, zpow_neg]
+    refine IsBigO.inv_rev ?_ ?_
+    · trans fun w ↦ (sin (‖w‖ / 2)) ^ 2
+      · simp_rw [zpow_ofNat]
+        apply IsBigO.pow
+        rw [← isBigO_const_mul_left_iff (show (2⁻¹ : ℝ) ≠ 0 by simp)]
+        simp_rw [mul_comm (2⁻¹ : ℝ), ← div_eq_mul_inv]
+        apply IsEquivalent.isBigO
+        have hinner : Tendsto (fun (w : Fin n → ℝ) ↦ ‖w‖ / 2) (𝓝 0) (𝓝 0) := by
+          suffices Tendsto (fun (w : Fin n → ℝ) ↦ ‖w‖ / 2) (𝓝 0) (𝓝 (0 / 2)) by simpa
+          apply Tendsto.div_const
+          exact tendsto_norm_zero
+        exact isEquivalent_sin.symm.comp_tendsto hinner
+      · apply Filter.Eventually.isBigO
+        rw [Metric.eventually_nhds_iff_ball]
+        refine ⟨π, pi_pos, fun w hw ↦ ?_⟩
+        have hw : ‖w‖ < π := by simpa using hw
+        rw [norm_eq_abs]
+        rw [abs_of_nonneg (sq_nonneg _)]
+        obtain ⟨i, _, hi⟩ :
+            ∃ i ∈ (Finset.univ : Finset (Fin n)), Finset.univ.sup (‖w ·‖₊) = ‖w i‖₊ :=
+          Finset.exists_mem_eq_sup _ (by simp) _
+        have hnorm : ‖w‖₊ = ‖w i‖₊ := hi ▸ Pi.nnnorm_def w
+        have hnorm : ‖w‖ = |w i| := by simpa using congr(((↑) : _ → ℝ) $hnorm)
+        rw [hnorm] at ⊢
+        apply (Finset.single_le_sum (by simp [sq_nonneg]) (Finset.mem_univ i)).trans
+        refine le_of_eq (Finset.sum_congr rfl fun i _ ↦ ?_)
+        rw [sq_eq_sq_iff_abs_eq_abs]
+        have habs : |w i| / 2 ≤ π := by
+          apply div_le_of_le_mul₀ (by simp) pi_nonneg
+          refine le_trans ?_ (le_trans hw.le (by simp [mul_two, pi_nonneg]))
+          simpa using norm_le_pi_norm w i
+        rw [Real.abs_sin_eq_sin_abs_of_abs_le_pi (by simpa [abs_div] using habs)]
+        rw [Real.abs_sin_eq_sin_abs_of_abs_le_pi (by simpa [abs_div] using habs)]
+        simp [abs_div]
+    · apply Eventually.of_forall fun x ↦ ?_
+      simp +contextual [zpow_eq_zero_iff]
+  · refine Eventually.of_forall fun x ↦ ?_
+    have hnonneg : 0 ≤ ∑ i, (1 - cos (x i)) := by
+      refine Finset.sum_nonneg fun i _ ↦ ?_
+      simpa using cos_le_one (x i)
+    simp_rw [← mul_one_sub]
+    rw [norm_eq_abs, ← Finset.mul_sum, ← div_div, abs_div, abs_div]
+    rw [abs_of_nonneg hnonneg, abs_of_nonneg (by simpa using cos_le_one _), abs_of_nonneg (by simp)]
+    refine div_le_div_of_nonneg_right ?_ hnonneg
+    apply div_le_of_le_mul₀ (by simp) (by simp)
+    rw [sub_le_comm]
+    norm_num
+    apply neg_one_le_cos
 
 theorem φ_kirchhoff [NeZero n] (x : Fin n → ℤ) :
     ∑ k, (φ (x - Pi.single k 1) - φ x) + ∑ k, (φ (x + Pi.single k 1) - φ x) = unitCur 0 x := by
