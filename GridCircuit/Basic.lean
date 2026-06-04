@@ -338,6 +338,73 @@ def φ (x : Fin n → ℤ) : ℝ :=
   (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
     (1 - Real.cos (∑ i, x i * w i)) / ∑ i, (2 - 2 * Real.cos (w i))
 
+@[simp]
+theorem φ_zero : φ (n := n) 0 = 0 := by
+  simp [φ]
+
+theorem φ_nonneg (x : Fin n → ℤ) : 0 ≤ φ x := by
+  unfold φ
+  apply mul_nonneg (pow_nonneg (by simpa using pi_nonneg) _)
+  apply integral_nonneg
+  intro x
+  simp only
+  apply div_nonneg
+  · simpa using cos_le_one _
+  · refine Finset.sum_nonneg fun i _ ↦ ?_
+    simpa using cos_le_one _
+
+@[simp]
+theorem φ_symmetry (x : Fin n → ℤ) (i : Fin n) : φ (Function.update x i (-x i)) = φ x := by
+  unfold φ
+  let f : (Fin n → ℝ) → (Fin n → ℝ) := Pi.map fun j ↦ if j = i then (fun (x : ℝ) ↦ -x) else id
+  let f' (w : Fin n → ℝ) : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) :=
+    ContinuousLinearMap.piMap
+    fun j ↦ if j = i then -(ContinuousLinearMap.id _ _) else (ContinuousLinearMap.id _ _)
+  have hf' (w : Fin n → ℝ) (_ : w ∈ Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) :
+      HasFDerivWithinAt f (f' w) (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) w := by
+    apply HasFDerivAt.hasFDerivWithinAt
+    unfold f'
+    rw [ContinuousLinearMap.piMap, hasFDerivAt_pi]
+    intro j
+    by_cases h : j = i
+    · simp only [h, Pi.map_apply, ↓reduceIte, ContinuousLinearMap.neg_comp,
+        ContinuousLinearMap.id_comp]
+      exact (hasFDerivAt_apply i w).neg
+    · simpa [h] using hasFDerivAt_apply j w
+  have hset : Set.Icc (fun _ ↦ -π) (fun _ ↦ π) = f '' Set.Icc (fun _ ↦ -π) (fun _ ↦ π) := by
+    rw [← Set.pi_univ_Icc, Set.piMap_image_univ_pi]
+    congrm Set.univ.pi fun j ↦ ?_
+    by_cases h : j = i <;> simp [h]
+  have hinj : Set.InjOn f (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) := by
+    apply Function.Injective.injOn
+    intro x y h
+    rw [funext_iff] at h
+    ext j
+    specialize h j
+    by_cases hj : j = i <;> simpa [f, hj] using h
+  have hdet (w : Fin n → ℝ) : (f' w).det = -1 := by
+    suffices ∏ x, (if x = i then -ContinuousLinearMap.id ℝ ℝ else ContinuousLinearMap.id ℝ ℝ) 1
+        = -1 by
+      simpa [f', ContinuousLinearMap.piMap, ContinuousLinearMap.det_pi]
+    rw [← Finset.prod_erase_mul _ _ (Finset.mem_univ i)]
+    convert (show (1 : ℝ) * -1 = -1 by simp)
+    · refine Finset.prod_eq_one fun j hj ↦ ?_
+      have : ¬ j = i := by simpa using hj
+      simp [this]
+    · simp only [↓reduceIte]
+      rfl
+  conv_lhs => rw [hset]
+  rw [integral_image_eq_integral_abs_det_fderiv_smul volume measurableSet_Icc hf' hinj]
+  simp_rw [hdet, abs_neg, abs_one, one_smul]
+  congr with w
+  congr with j
+  · by_cases h : j = i <;> simp [f, h]
+  · by_cases h : j = i <;> simp [f, h]
+
+theorem bddBelow_φ : BddBelow (Set.range <| φ (n := n)) := by
+  use 0
+  simpa [mem_lowerBounds] using φ_nonneg
+
 -- Aristotle
 lemma abs_sin_add_le (a b : ℝ) : |sin (a + b)| ≤ |sin a| + |sin b| := by
   rw [abs_le]
@@ -429,7 +496,7 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
   have : NeZero n := ⟨fun h ↦ by simp [h] at hn⟩
   have hn1 : 1 ≤ n := le_trans (by simp) hn
   have hn2 : 2 < n := lt_of_lt_of_le (by simp) hn
-  have hn2' : (2 : ℝ) < (Module.finrank ℝ (Fin n → ℝ)) := by
+  have hn2' : (2 : ℝ) < Module.finrank ℝ (Fin n → ℝ) := by
     simpa using hn2
   unfold φ
   have hleft : 0 ≤ (2 * π)⁻¹ ^ n := by
@@ -490,9 +557,7 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
         simp_rw [mul_comm (2⁻¹ : ℝ), ← div_eq_mul_inv]
         apply IsEquivalent.isBigO
         have hinner : Tendsto (fun (w : Fin n → ℝ) ↦ ‖w‖ / 2) (𝓝 0) (𝓝 0) := by
-          suffices Tendsto (fun (w : Fin n → ℝ) ↦ ‖w‖ / 2) (𝓝 0) (𝓝 (0 / 2)) by simpa
-          apply Tendsto.div_const
-          exact tendsto_norm_zero
+          simpa using tendsto_norm_zero.div_const 2
         exact isEquivalent_sin.symm.comp_tendsto hinner
       · apply Filter.Eventually.isBigO
         rw [Metric.eventually_nhds_iff_ball]
@@ -530,6 +595,14 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
     rw [sub_le_comm]
     norm_num
     apply neg_one_le_cos
+
+theorem bddAbove_φ (hn : 3 ≤ n) : BddAbove (Set.range <| φ (n := n)) := by
+  obtain habs := abs_φ_le hn
+  simp_rw [abs_le] at habs
+  use (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
+    1 / ∑ i, (1 - Real.cos (w i))
+  simp_rw [mem_upperBounds, Set.mem_range, forall_exists_index, forall_apply_eq_imp_iff]
+  exact fun x ↦ (habs x).2
 
 theorem φ_kirchhoff [NeZero n] (x : Fin n → ℤ) :
     ∑ k, (φ (x - Pi.single k 1) - φ x) + ∑ k, (φ (x + Pi.single k 1) - φ x) = unitCur 0 x := by
