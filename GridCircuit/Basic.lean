@@ -501,6 +501,35 @@ theorem φ_2d :
     norm_num
   · norm_num
 
+
+theorem eq_zero_of_φ_2d_deno_le_zero
+    {p : ℝ × ℝ} (hp : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π)
+    (h : 4 - (2 * cos p.1 + 2 * cos p.2) ≤ 0) : p = 0 := by
+  rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring] at h
+  have h := le_antisymm h (add_nonneg (by simpa using cos_le_one _) (by simpa using cos_le_one _))
+  rw [(add_eq_zero_iff_of_nonneg (by simpa using cos_le_one _)
+    (by simpa using cos_le_one _))] at h
+  simp only [mul_eq_zero, OfNat.ofNat_ne_zero, sub_eq_zero, false_or] at h
+  have h1 := h.1.symm
+  have h2 := h.2.symm
+  rw [Set.mem_prod] at hp
+  rw [Real.cos_eq_one_iff_of_lt_of_lt (lt_of_lt_of_le (by simp [pi_pos]) hp.1.1)
+    (lt_of_le_of_lt hp.1.2 (by simp [pi_pos]))] at h1
+  rw [Real.cos_eq_one_iff_of_lt_of_lt (lt_of_lt_of_le (by simp [pi_pos]) hp.2.1)
+    (lt_of_le_of_lt hp.2.2 (by simp [pi_pos]))] at h2
+  ext
+  · exact h1
+  · exact h2
+
+theorem two_mul_one_sub_cos_le (x : ℝ) : 2 * (1 - cos x) ≤ x ^ 2 := by
+  grw [← one_sub_sq_div_two_le_cos]
+  apply le_of_eq
+  ring
+
+theorem one_sub_cos_le (x : ℝ) : (1 - cos x) ≤ x ^ 2 / 2 := by
+  grw [← two_mul_one_sub_cos_le]
+  simp
+
 theorem φ_integrable_2d (x : Fin 2 → ℤ) :
     IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
     (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) volume := by
@@ -512,6 +541,25 @@ theorem φ_integrable_2d (x : Fin 2 → ℤ) :
   rw [← Measure.restrict_pi_pi, ← IntegrableOn, ← MeasureTheory.volume_pi, Set.pi_univ_Icc]
   convert integrable_φ x with x
   simp [show (2 : ℝ) * 2 = 4 by norm_num]
+
+theorem φ_integrable_2d' (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ ((1 - cos (x 0 * w.1 + x 1 * w.2)) / (w.1 ^ 2 + w.2 ^ 2)))
+      (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) volume := by
+  apply Integrable.mono_nonneg (φ_integrable_2d x) ?_ ?_ ?_
+  · apply AEStronglyMeasurable.restrict
+    apply StronglyMeasurable.aestronglyMeasurable
+    fun_prop
+  · refine Eventually.of_forall fun p ↦ div_nonneg ?_ ?_
+    · simpa using cos_le_one _
+    · positivity
+  · refine ae_restrict_of_forall_mem (by measurability) fun p hp ↦ ?_
+    by_cases hp0 : p = 0
+    · simp [hp0]
+    apply div_le_div_of_nonneg_left (by simpa using cos_le_one _)
+    · contrapose! hp0
+      apply eq_zero_of_φ_2d_deno_le_zero hp hp0
+    rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
+    exact add_le_add (two_mul_one_sub_cos_le _) (two_mul_one_sub_cos_le _)
 
 theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
     |φ x| ≤ (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
@@ -698,60 +746,54 @@ theorem map_polarCoord_eq_cobounded :
         Real.abs_le_sqrt <| by nlinarith, Real.abs_le_sqrt <| by nlinarith ⟩ );
     · grind
 
-theorem two_mul_one_sub_cos_le (x : ℝ) : 2 * (1 - cos x) ≤ x ^ 2 := by
-  grw [← one_sub_sq_div_two_le_cos]
-  apply le_of_eq
-  ring
-
-theorem one_sub_cos_le (x : ℝ) : (1 - cos x) ≤ x ^ 2 / 2 := by
-  grw [← two_mul_one_sub_cos_le]
-  simp
-
-theorem eq_zero_of_φ_2d_deno_le_zero
-    {p : ℝ × ℝ} (hp : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π)
-    (h : 4 - (2 * cos p.1 + 2 * cos p.2) ≤ 0) : p = 0 := by
-  rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring] at h
-  have h := le_antisymm h (add_nonneg (by simpa using cos_le_one _) (by simpa using cos_le_one _))
-  rw [(add_eq_zero_iff_of_nonneg (by simpa using cos_le_one _)
-    (by simpa using cos_le_one _))] at h
-  simp only [mul_eq_zero, OfNat.ofNat_ne_zero, sub_eq_zero, false_or] at h
-  have h1 := h.1.symm
-  have h2 := h.2.symm
-  rw [Set.mem_prod] at hp
-  rw [Real.cos_eq_one_iff_of_lt_of_lt (lt_of_lt_of_le (by simp [pi_pos]) hp.1.1)
-    (lt_of_le_of_lt hp.1.2 (by simp [pi_pos]))] at h1
-  rw [Real.cos_eq_one_iff_of_lt_of_lt (lt_of_lt_of_le (by simp [pi_pos]) hp.2.1)
-    (lt_of_le_of_lt hp.2.2 (by simp [pi_pos]))] at h2
-  ext
-  · exact h1
-  · exact h2
-
-theorem one_isBigO_log :
-    (1 : (Fin 2 → ℤ) → ℝ) =O[cofinite] fun (x : Fin 2 → ℤ) ↦ log ((x 0) ^ 2 + (x 1) ^ 2) := by
-  rw [isBigO_iff]
-  use 1
-  have : ((Set.univ : Set (Fin 2)).pi fun _ ↦ Set.Icc (-2 : ℤ) 2).Finite :=
-    Set.Finite.pi fun _ ↦ Set.finite_Icc _ _
-  filter_upwards [this.eventually_cofinite_notMem]
-  intro p hp
-  suffices 1 ≤ |log ((p 0) ^ 2 + (p 1) ^ 2)| by simpa
-  suffices log (exp 1) ≤ log ((p 0) ^ 2 + (p 1) ^ 2) by
-    rw [abs_of_nonneg (le_trans (by simp) this)]
-    simpa using this
-  apply log_le_log (exp_pos _)
-  apply exp_one_lt_three.le.trans
-  rw [Set.mem_pi] at hp
-  have hp : -2 ≤ p 0 → p 0 ≤ 2 → -2 ≤ p 1 → 2 < p 1 := by simpa using hp
-  have hp : |2| < |p 0| ∨ |2| < |p 1| := by grind
-  rw [← sq_lt_sq, ← sq_lt_sq] at hp
-  norm_cast
-  obtain h | h  := hp
-  · refine le_add_of_le_of_nonneg ?_ (sq_nonneg _)
-    grw [← h]
-    simp
-  · refine le_add_of_nonneg_of_le (sq_nonneg _) ?_
-    grw [← h]
-    simp
+theorem one_isLittleO_log :
+    (1 : (Fin 2 → ℤ) → ℝ) =o[cofinite] fun (x : Fin 2 → ℤ) ↦ log ((x 0) ^ 2 + (x 1) ^ 2) := by
+  rw [isLittleO_iff]
+  intro c hc
+  suffices {x : Fin 2 → ℤ | c * |log (x 0 ^ 2 + x 1 ^ 2)| < 1}.Finite by simpa
+  conv in fun x ↦ _ =>
+    ext x
+    rw [abs_of_nonneg (by
+      norm_cast
+      apply Real.log_intCast_nonneg
+    )]
+  suffices ({x : ℤ | c * log (x ^ 2) < 1}).Finite by
+    have : ((Set.univ : Set (Fin 2)).pi fun _ ↦ {x : ℤ | c * log (x ^ 2) < 1}).Finite :=
+      Set.Finite.pi fun _ ↦ this
+    apply this.subset
+    suffices (∀ (x : Fin 2 → ℤ), c * log (x 0 ^ 2 + x 1 ^ 2) < 1 → c * (log (x 0 ^ 2)) < 1) ∧
+        ∀ (x : Fin 2 → ℤ), c * log (x 0 ^ 2 + x 1 ^ 2) < 1 → c * log (x 1 ^ 2) < 1 by
+      simpa [Set.subset_pi_iff]
+    constructor
+    <;> intro x hx
+    <;> refine lt_of_le_of_lt ?_ hx
+    <;> refine mul_le_mul_of_nonneg_left ?_ hc.le
+    · by_cases h0 : x 0 = 0
+      · simpa [h0] using Real.log_intCast_nonneg (x 1)
+      exact Real.log_le_log (by simpa [sq_pos_iff] using h0) (by simpa using sq_nonneg _)
+    · by_cases h0 : x 1 = 0
+      · simpa [h0] using Real.log_intCast_nonneg (x 0)
+      exact Real.log_le_log (by simpa [sq_pos_iff] using h0) (by simpa using sq_nonneg _)
+  simp only [log_pow, Nat.cast_ofNat, ← mul_assoc]
+  apply (Set.finite_Icc (-⌈exp (c * 2)⁻¹⌉) (⌈exp (c * 2)⁻¹⌉)).subset
+  intro x hx
+  rw [Set.mem_setOf_eq, ← lt_inv_mul_iff₀ (mul_pos hc (by simp)), mul_one] at hx
+  rcases lt_trichotomy x 0 with hx0 | hx0 | hx0
+  · set y := -x
+    obtain hy : x = -y := by simp [y]
+    rw [hy] at ⊢ hx0 hx
+    rw [Int.cast_neg, log_neg_eq_log] at hx
+    rw [log_lt_iff_lt_exp (by simpa using hx0)] at hx
+    constructor
+    · rw [neg_le_neg_iff, Int.le_ceil_iff]
+      apply lt_trans (by simp) hx
+    · exact le_trans hx0.le (by simp [Int.ceil_nonneg, exp_nonneg])
+  · simp [hx0, Int.ceil_nonneg, exp_nonneg]
+  · rw [log_lt_iff_lt_exp (by simpa using hx0)] at hx
+    constructor
+    · exact le_trans (by simp [Int.ceil_nonneg, exp_nonneg]) hx0.le
+    · rw [Int.le_ceil_iff]
+      apply lt_trans (by simp) hx
 
 theorem integrable_bessel (x1 x2 : ℝ) :
     IntegrableOn (fun p ↦ (1 - cos (x1 * p.1 * cos (p.2 - x2))) / p.1)
@@ -774,9 +816,118 @@ theorem integrable_bessel (x1 x2 : ℝ) :
       simpa using abs_cos_le_one _
     exact _root_.sq_le hp.1.1.le hp.1.2
 
-theorem φ_isBigO_log : φ (n := 2) =O[cofinite] fun (x : Fin 2 → ℤ) ↦ log (x 0 ^ 2 + x 1 ^ 2) := by
+theorem disk_subset : {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1} ⊆ Set.Icc (-π) π ×ˢ Set.Icc (-π) π := by
+  intro p hp
+  suffices p.1 ^ 2 ≤ π ^ 2 ∧ p.2 ^ 2 ≤ π ^ 2 by
+    rw [Set.mem_prod]
+    convert this using 1 <;> simp [sq_le_sq, abs_le, abs_of_nonneg pi_nonneg]
+  simp only [Set.mem_setOf_eq] at hp
+  contrapose! +distrib hp
+  obtain hp | hp := hp
+  · grw [← hp]
+    refine lt_add_of_lt_of_nonneg ?_ (sq_nonneg _)
+    simp only [one_lt_sq_iff_one_lt_abs, abs_of_nonneg pi_nonneg]
+    exact lt_trans (by simp) pi_gt_three
+  · grw [← hp]
+    apply lt_add_of_nonneg_of_lt (sq_nonneg _)
+    simp only [one_lt_sq_iff_one_lt_abs, abs_of_nonneg pi_nonneg]
+    exact lt_trans (by simp) pi_gt_three
+
+
+theorem isTheta_circle_integral :
+    (fun (x : Fin 2 → ℤ) ↦ ∫ (w : ℝ × ℝ) in {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1},
+      (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)) ∂volume) =Θ[cofinite]
+    ((fun x ↦ ∫ (w : ℝ × ℝ) in {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1}, (
+      1 - cos (x 0 * w.1 + x 1 * w.2)) / (w.1 ^ 2 + w.2 ^ 2))) := by
+  have hnonnegleft (x : Fin 2 → ℤ) :
+      0 ≤ fun (w : ℝ × ℝ) ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) /
+      (4 - (2 * cos w.1 + 2 * cos w.2)) := by
+    intro x
+    apply div_nonneg
+    · simpa using cos_le_one _
+    · grw [sub_nonneg, cos_le_one, cos_le_one]
+      norm_num
+  have honnegright (x : Fin 2 → ℤ) :
+      0 ≤ fun (w : ℝ × ℝ) ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (w.1 ^ 2 + w.2 ^ 2) := by
+    intro x
+    apply div_nonneg
+    · simpa using cos_le_one _
+    · positivity
+  apply IsBigO.antisymm ?_ ?_
+  · rw [isBigO_iff]
+    use 2 ^ 2
+    refine Eventually.of_forall fun x ↦ ?_
+    rw [norm_eq_abs, abs_of_nonneg (integral_nonneg (hnonnegleft x))]
+    rw [norm_eq_abs, abs_of_nonneg (integral_nonneg (honnegright x))]
+    rw [← integral_const_mul]
+    refine setIntegral_mono_on ((φ_integrable_2d _).mono_set disk_subset)
+      (IntegrableOn.mono_set ((φ_integrable_2d' _).const_mul (2 ^ 2)) disk_subset)
+      (by measurability) ?_
+    intro p hp
+    have hp : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π := Set.mem_of_mem_of_subset hp disk_subset
+    rw [Set.mem_prod] at hp
+    by_cases hp0 : p = 0
+    · simp [hp0]
+    rw [mul_comm (2 ^ 2) _, div_mul]
+    apply div_le_div_of_nonneg_left
+    · simpa using cos_le_one _
+    · rw [div_pos_iff_of_pos_right (by simp)]
+      apply lt_of_le_of_ne' (add_nonneg (sq_nonneg _)  (sq_nonneg _))
+      rw [ne_eq, (add_eq_zero_iff_of_nonneg (sq_nonneg _) (sq_nonneg _)).not]
+      simp only [ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true, pow_eq_zero_iff, not_and]
+      contrapose! hp0
+      ext
+      · exact hp0.1
+      · exact hp0.2
+    rw [show 4 - (2 * cos p.1 + 2 * cos p.2) =
+      2 * (1 - cos (2 * (p.1 / 2))) + 2 * (1 - cos (2 * (p.2 / 2))) by ring_nf]
+    rw [cos_two_mul_eq_one_sub, cos_two_mul_eq_one_sub, sub_sub_cancel, sub_sub_cancel, add_div]
+    have hp1 : |p.1 / 2| ≤ π / 2 := by
+      rw [abs_le]
+      rw [←neg_div, div_le_div_iff_of_pos_right (by simp), div_le_div_iff_of_pos_right (by simp)]
+      simpa using hp.1
+    have hp1' : |p.1 / 2| ≤ π := by
+      apply hp1.trans
+      simpa using pi_nonneg
+    have hp2 : |p.2 / 2| ≤ π / 2 := by
+      rw [abs_le]
+      rw [←neg_div, div_le_div_iff_of_pos_right (by simp), div_le_div_iff_of_pos_right (by simp)]
+      simpa using hp.2
+    have hp2' : |p.2 / 2| ≤ π := by
+      apply hp2.trans
+      simpa using pi_nonneg
+    apply add_le_add
+    all_goals
+    rw [← mul_assoc, ← sq, ← div_pow, ← mul_pow, sq_le_sq, abs_mul, Nat.abs_ofNat,
+      abs_sin_eq_sin_abs_of_abs_le_pi (by assumption)]
+    grw [← mul_le_sin (abs_nonneg _) (by assumption)]
+    rw [← mul_assoc]
+    apply le_mul_of_one_le_left (by simp)
+    rw [← mul_div_assoc, one_le_div pi_pos]
+    norm_num
+    exact pi_lt_four.le
+  · rw [isBigO_iff]
+    use 1
+    refine Eventually.of_forall fun x ↦ ?_
+    rw [norm_eq_abs, abs_of_nonneg (integral_nonneg (honnegright x))]
+    rw [norm_eq_abs, abs_of_nonneg (integral_nonneg (hnonnegleft x))]
+    rw [one_mul]
+    refine setIntegral_mono_on ((φ_integrable_2d' _).mono_set disk_subset)
+      ((φ_integrable_2d _).mono_set disk_subset) (by measurability) ?_
+    intro p hp
+    have hp : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π := Set.mem_of_mem_of_subset hp disk_subset
+    by_cases hp0 : p = 0
+    · simp [hp0]
+    apply div_le_div_of_nonneg_left
+    · simpa using cos_le_one _
+    · contrapose! hp0
+      apply eq_zero_of_φ_2d_deno_le_zero hp hp0
+    rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
+    exact add_le_add (two_mul_one_sub_cos_le _) (two_mul_one_sub_cos_le _)
+
+theorem φ_isBigO_log : φ (n := 2) =Θ[cofinite] fun (x : Fin 2 → ℤ) ↦ log (x 0 ^ 2 + x 1 ^ 2) := by
   rw [φ_2d]
-  apply IsBigO.const_mul_left
+  apply IsTheta.const_mul_left (by simp)
   let disk : Set (ℝ × ℝ) := {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1}
   let odisk : Set (ℝ × ℝ) := {p | p.1 ^ 2 + p.2 ^ 2 < 1}
   have hodisk : IsOpen odisk := by
@@ -785,29 +936,13 @@ theorem φ_isBigO_log : φ (n := 2) =O[cofinite] fun (x : Fin 2 → ℤ) ↦ log
     apply this.isOpen_preimage _ (isOpen_Iio' 1)
   have hdiskdisk : odisk ⊆ disk := by
     grind
-  have hdisk : disk ⊆ Set.Icc (-π) π ×ˢ Set.Icc (-π) π := by
-    intro p hp
-    suffices p.1 ^ 2 ≤ π ^ 2 ∧ p.2 ^ 2 ≤ π ^ 2 by
-      rw [Set.mem_prod]
-      convert this using 1 <;> simp [sq_le_sq, abs_le, abs_of_nonneg pi_nonneg]
-    simp only [Set.mem_setOf_eq, disk] at hp
-    contrapose! +distrib hp
-    obtain hp | hp := hp
-    · grw [← hp]
-      refine lt_add_of_lt_of_nonneg ?_ (sq_nonneg _)
-      simp only [one_lt_sq_iff_one_lt_abs, abs_of_nonneg pi_nonneg]
-      exact lt_trans (by simp) pi_gt_three
-    · grw [← hp]
-      apply lt_add_of_nonneg_of_lt (sq_nonneg _)
-      simp only [one_lt_sq_iff_one_lt_abs, abs_of_nonneg pi_nonneg]
-      exact lt_trans (by simp) pi_gt_three
   have hdiskmeasureable : MeasurableSet disk := by measurability
   conv_lhs =>
     ext x
     rw [← integral_inter_add_diff hdiskmeasureable (φ_integrable_2d _),
-      Set.inter_eq_right.mpr hdisk]
-  apply IsBigO.add; swap
-  · trans 1
+      Set.inter_eq_right.mpr disk_subset]
+  apply IsTheta.add_isLittleO; swap
+  · apply IsBigO.trans_isLittleO (g := (1 : (Fin 2 → ℤ) → ℝ))
     · rw [isBigO_iff]
       use ∫ w in Set.Icc (-π) π ×ˢ Set.Icc (-π) π \ disk, 2 / (4 - (2 * cos w.1 + 2 * cos w.2))
       refine Eventually.of_forall fun x ↦ ?_
@@ -844,98 +979,19 @@ theorem φ_isBigO_log : φ (n := 2) =O[cofinite] fun (x : Fin 2 → ℤ) ↦ log
           exact neg_one_le_cos _
         · rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
           exact add_nonneg (by simpa using cos_le_one _) (by simpa using cos_le_one _)
-    apply one_isBigO_log
+    exact one_isLittleO_log
   let zr (x : Fin 2 → ℤ) : ℝ × ℝ := (x 0, x 1)
   trans (fun x ↦ ∫ w in disk, (1 - cos (x.1 * w.1 + x.2 * w.2)) / (w.1 ^ 2 + w.2 ^ 2)) ∘ zr
   · unfold zr
-    rw [isBigO_iff]
-    use 2 ^ 2
-    refine Eventually.of_forall fun x ↦ ?_
-    rw [norm_eq_abs, abs_of_nonneg (integral_nonneg (by
-      intro x
-      apply div_nonneg
-      · simpa using cos_le_one _
-      · grw [sub_nonneg, cos_le_one, cos_le_one]
-        norm_num
-    ))]
-    rw [Function.comp_apply, norm_eq_abs]
-    simp only
-    rw [abs_of_nonneg (integral_nonneg (by
-      intro x
-      apply div_nonneg
-      · simpa using cos_le_one _
-      · positivity
-    ))]
-    rw [← integral_const_mul]
-    refine setIntegral_mono_on ((φ_integrable_2d _).mono_set hdisk) ?_ hdiskmeasureable ?_
-    · refine IntegrableOn.mono_set ?_ hdisk
-      apply Integrable.const_mul
-      apply Integrable.mono_nonneg (φ_integrable_2d x) ?_ ?_ ?_
-      · apply AEStronglyMeasurable.restrict
-        apply StronglyMeasurable.aestronglyMeasurable
-        fun_prop
-      · refine Eventually.of_forall fun p ↦ div_nonneg ?_ ?_
-        · simpa using cos_le_one _
-        · positivity
-      · refine ae_restrict_of_forall_mem (by measurability) fun p hp ↦ ?_
-        by_cases hp0 : p = 0
-        · simp [hp0]
-        apply div_le_div_of_nonneg_left (by simpa using cos_le_one _)
-        · contrapose! hp0
-          apply eq_zero_of_φ_2d_deno_le_zero hp hp0
-        rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
-        exact add_le_add (two_mul_one_sub_cos_le _) (two_mul_one_sub_cos_le _)
-    · intro p hp
-      have hp : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π := Set.mem_of_mem_of_subset hp hdisk
-      rw [Set.mem_prod] at hp
-      by_cases hp0 : p = 0
-      · simp [hp0]
-      rw [mul_comm (2 ^ 2) _, div_mul]
-      apply div_le_div_of_nonneg_left
-      · simpa using cos_le_one _
-      · rw [div_pos_iff_of_pos_right (by simp)]
-        apply lt_of_le_of_ne' (add_nonneg (sq_nonneg _)  (sq_nonneg _))
-        rw [ne_eq, (add_eq_zero_iff_of_nonneg (sq_nonneg _) (sq_nonneg _)).not]
-        simp only [ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true, pow_eq_zero_iff, not_and]
-        contrapose! hp0
-        ext
-        · exact hp0.1
-        · exact hp0.2
-      rw [show 4 - (2 * cos p.1 + 2 * cos p.2) =
-        2 * (1 - cos (2 * (p.1 / 2))) + 2 * (1 - cos (2 * (p.2 / 2))) by ring_nf]
-      rw [cos_two_mul_eq_one_sub, cos_two_mul_eq_one_sub, sub_sub_cancel, sub_sub_cancel, add_div]
-      have hp1 : |p.1 / 2| ≤ π / 2 := by
-        rw [abs_le]
-        rw [←neg_div, div_le_div_iff_of_pos_right (by simp), div_le_div_iff_of_pos_right (by simp)]
-        simpa using hp.1
-      have hp1' : |p.1 / 2| ≤ π := by
-        apply hp1.trans
-        simpa using pi_nonneg
-      have hp2 : |p.2 / 2| ≤ π / 2 := by
-        rw [abs_le]
-        rw [←neg_div, div_le_div_iff_of_pos_right (by simp), div_le_div_iff_of_pos_right (by simp)]
-        simpa using hp.2
-      have hp2' : |p.2 / 2| ≤ π := by
-        apply hp2.trans
-        simpa using pi_nonneg
-      apply add_le_add
-      all_goals
-      rw [← mul_assoc, ← sq, ← div_pow, ← mul_pow, sq_le_sq, abs_mul, Nat.abs_ofNat,
-        abs_sin_eq_sin_abs_of_abs_le_pi (by assumption)]
-      grw [← mul_le_sin (abs_nonneg _) (by assumption)]
-      rw [← mul_assoc]
-      apply le_mul_of_one_le_left (by simp)
-      rw [← mul_div_assoc, one_le_div pi_pos]
-      norm_num
-      exact pi_lt_four.le
+    exact isTheta_circle_integral
   trans (fun x ↦ log (x.1 ^ 2 + x.2 ^ 2)) ∘ zr; swap
   · rfl
-  rw [← isBigO_map]
-  refine IsBigO.mono ?_ cofinite_int_le_cobounded_real
-  rw [← map_polarCoord_eq_cobounded, isBigO_map]
+  rw [← isTheta_map]
+  refine IsTheta.mono ?_ cofinite_int_le_cobounded_real
+  rw [← map_polarCoord_eq_cobounded, isTheta_map]
   change (fun x ↦ ∫ (w : ℝ × ℝ) in {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1},
     (1 - cos ((x.1 * cos x.2) * w.1 + (x.1 * sin x.2) * w.2)) / (w.1 ^ 2 + w.2 ^ 2))
-    =O[atTop ×ˢ 𝓟 (Set.Icc (-π) π)]
+    =Θ[atTop ×ˢ 𝓟 (Set.Icc (-π) π)]
     fun x ↦ log ((x.1 * cos x.2) ^ 2 + (x.1 * sin x.2) ^ 2)
   conv_lhs =>
     ext x
@@ -973,7 +1029,7 @@ theorem φ_isBigO_log : φ (n := 2) =O[cofinite] fun (x : Fin 2 → ℤ) ↦ log
   conv_rhs =>
     ext x
     rw [mul_pow, mul_pow, ← mul_add, cos_sq_add_sin_sq, mul_one, log_pow]
-  apply IsBigO.const_mul_right (by simp)
+  apply IsTheta.const_mul_right (by simp)
   exact asymptotic_bessel.comp_fst _
 
 

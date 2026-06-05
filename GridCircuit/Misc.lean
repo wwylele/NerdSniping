@@ -105,3 +105,12 @@ theorem integral_comp_polarCoord_symm_disk {E : Type*} [NormedAddCommGroup E] [N
   simp only [polarCoord_target, Function.comp_apply, polarCoord_symm_apply]
   congr
   grind
+
+
+
+@[simp]
+theorem Asymptotics.isTheta_map {α : Type*} {β : Type*} {E : Type*} {F : Type*} [Norm E] [Norm F]
+    {f : α → E} {g : α → F} {k : β → α} {l : Filter β} :
+    f =Θ[Filter.map k l] g ↔ (f ∘ k) =Θ[l] (g ∘ k) := by
+  unfold IsTheta
+  simp
