@@ -1,4 +1,5 @@
-import Mathlib
+import GridCircuit.Misc
+import GridCircuit.Bessel
 
 open Real MeasureTheory Filter Topology Asymptotics
 
@@ -205,29 +206,6 @@ theorem isElectricPotential_zero [NeZero n] {pot : (Fin n → ℤ) → ℝ} :
       bddAbove := ⟨c, by simp⟩
     }
 
-theorem bddBelow_range_sub {α : Type*} {β : Type*} [LinearOrder β] [AddCommGroup β]
-    [IsOrderedAddMonoid β]
-    {a b : α → β} (ha : BddBelow (Set.range a)) (hb : BddAbove (Set.range b)) :
-    BddBelow (Set.range (a - b)) := by
-  obtain ⟨ca, ha⟩ := ha
-  obtain ⟨cb, hb⟩ := hb
-  use ca - cb
-  suffices ∀ (x : α), ca - cb ≤ a x - b x by simpa [mem_lowerBounds]
-  have ha : ∀ (x : α), ca ≤ a x:= by simpa [mem_lowerBounds] using ha
-  have hb : ∀ (x : α), b x ≤ cb := by simpa [mem_upperBounds] using hb
-  exact fun x ↦ sub_le_sub (ha x) (hb x)
-
-theorem bddAbove_range_sub {α : Type*} {a b : α → ℝ} (ha : BddAbove (Set.range a))
-    (hb : BddBelow (Set.range b)) :
-    BddAbove (Set.range (a - b)) := by
-  obtain ⟨ca, ha⟩ := ha
-  obtain ⟨cb, hb⟩ := hb
-  use ca - cb
-  suffices ∀ (x : α), a x - b x ≤ ca - cb by simpa [mem_upperBounds]
-  have ha : ∀ (x : α), a x ≤ ca := by simpa [mem_upperBounds] using ha
-  have hb : ∀ (x : α), cb ≤ b x := by simpa [mem_lowerBounds] using hb
-  exact fun x ↦ sub_le_sub (ha x) (hb x)
-
 theorem isElectrictPotential_unique [NeZero n] {cur : (Fin n → ℤ) → ℝ} {a b : (Fin n → ℤ) → ℝ}
     (ha : IsElectricPotential cur a) (hb : IsElectricPotential cur b) :
     ∃ c, a - b = fun _ ↦ c := by
@@ -261,18 +239,6 @@ theorem equivResistance_eq [NeZero n] {x : Fin n → ℤ} {pot : (Fin n → ℤ)
   obtain ⟨c, hc⟩ := isElectrictPotential_unique h'.choose_spec h
   rw [sub_eq_iff_eq_add] at hc
   simp [equivResistance, h', hc]
-
-theorem Pi.intCast_single (a : Fin n) (b : ℤ) (x : Fin n) :
-    ((Pi.single (M := fun (_ : Fin n) ↦ ℤ) a b x) : ℝ) =
-    (Pi.single (M := fun (_ : Fin n) ↦ ℝ) a b x) := by
-  by_cases h : a = x
-  · aesop
-  · aesop
-
-theorem Pi.single_mul_left_const_apply {ι : Type*} {α : Type*}
-    [MulZeroClass α] [DecidableEq ι] (i j : ι) (a : α) (f : α) :
-    single (M := fun _ ↦ α) i (a * f) j = single (M := fun _ ↦ α) i a j * f := by
-  by_cases h : i = j <;> aesop
 
 theorem fourier_unitCur (x : Fin n → ℤ) :
     unitCur 0 x = (2 * π)⁻¹ ^ n *
@@ -483,55 +449,6 @@ theorem bddBelow_φ : BddBelow (Set.range <| φ (n := n)) := by
   use 0
   simpa [mem_lowerBounds] using φ_nonneg
 
--- Aristotle
-lemma abs_sin_add_le (a b : ℝ) : |sin (a + b)| ≤ |sin a| + |sin b| := by
-  rw [abs_le]
-  constructor
-  <;> cases abs_cases (sin a)
-  <;> cases abs_cases (sin b)
-  <;> nlinarith [abs_le.mp (Real.abs_cos_le_one a), abs_le.mp (Real.abs_cos_le_one b),
-    Real.sin_add a b]
-
-lemma abs_sin_sum_le {ι : Type*} (s : Finset ι) (a : ι → ℝ) :
-    |sin (∑ i ∈ s, a i)| ≤ ∑ i ∈ s, |sin (a i)| := by
-  induction s using Finset.cons_induction with
-  | empty => simp
-  | cons a s h ih =>
-    simp only [Finset.sum_cons]
-    apply (abs_sin_add_le _ _).trans
-    grw [ih]
-
--- Aristotle
-lemma abs_sin_nat_mul_le (m : ℕ) (y : ℝ) :
-    |sin (m * y)| ≤ m * |sin y| := by
-  induction m with
-  | zero => simp
-  | succ n ih =>
-    simp only [Nat.cast_add, Nat.cast_one, add_mul, one_mul, sin_add]
-    rw [abs_le]
-    constructor
-    · cases abs_cases (Real.sin y)
-      <;> nlinarith [abs_le.mp ‹_›, abs_le.mp (Real.abs_cos_le_one ((↑‹ℕ› : ℝ) * y)),
-        abs_le.mp (Real.abs_cos_le_one y) ]
-    · cases abs_cases (Real.sin y)
-      <;> nlinarith [abs_le.mp ‹_›, abs_le.mp (Real.abs_cos_le_one ((↑‹ℕ› : ℝ) * y)),
-        abs_le.mp (Real.abs_cos_le_one y) ]
-
-
-theorem sin_inequality (x : Fin n → ℤ) (y : Fin n → ℝ) :
-    sin (∑ i, x i * y i) ^ 2 ≤ (∑ k, (x k : ℝ) ^ 2) * ∑ i, sin (y i) ^ 2 := by
-  simp_rw [← sq_abs (x _ : ℝ), ← sq_abs (sin _)]
-  apply le_trans ?_ (Finset.sum_mul_sq_le_sq_mul_sq _ _ _)
-  rw [sq_le_sq₀ (by simp) (by positivity)]
-  apply (abs_sin_sum_le _ _).trans
-  refine Finset.sum_le_sum fun i _ ↦ ?_
-  convert abs_sin_nat_mul_le (Int.natAbs (x i)) (y i) using 0
-  congrm ?_ ≤ $(by simp) * _
-  rw [Nat.cast_natAbs, Int.cast_abs]
-  rcases abs_cases (x i : ℝ) with ⟨hx, h⟩ | ⟨hx, h⟩
-  · simp [hx]
-  · simp [hx]
-
 theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
     IntegrableOn (fun w ↦ (1 - cos (∑ k, x k * w k)) / ∑ k, (2 - 2 * cos (w k)))
       (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) := by
@@ -567,6 +484,22 @@ theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
   grw [sin_inequality]
   apply le_of_eq
   ring
+
+theorem φ_2d :
+    φ = fun (x : Fin 2 → ℤ) ↦ (4 * π ^ 2)⁻¹ * ∫ w in Set.Icc (-π) π ×ˢ Set.Icc (-π) π,
+    (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)) := by
+  unfold φ
+  ext x
+  rw [Measure.volume_eq_prod, ← Measure.prod_restrict]
+  rw [← (measurePreserving_finTwoArrow _).integral_comp']
+  rw [← Measure.restrict_pi_pi]
+  simp only [mul_inv_rev, Fin.sum_univ_two, Fin.isValue, Finset.sum_sub_distrib, Finset.sum_const,
+    Finset.card_univ, Fintype.card_fin, nsmul_eq_mul, Nat.cast_ofNat, Set.pi_univ_Icc,
+    MeasurableEquiv.finTwoArrow_apply]
+  congr
+  · simp [mul_pow]
+    norm_num
+  · norm_num
 
 theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
     |φ x| ≤ (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
@@ -673,6 +606,164 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
     rw [sub_le_comm]
     norm_num
     apply neg_one_le_cos
+
+-- Aristotle
+theorem cofinite_int_le_cobounded_real :
+    Filter.map (fun (x : Fin 2 → ℤ) ↦ ((x 0 : ℝ), (x 1 : ℝ))) cofinite ≤
+    Bornology.cobounded (ℝ × ℝ) := by
+  refine Filter.map_le_iff_le_comap.mpr ?_;
+  have h_preimage_finite : ∀ (S : Set (ℝ × ℝ)),
+      Bornology.IsBounded S → Set.Finite {x : Fin 2 → ℤ | ((x 0 : ℝ), (x 1 : ℝ)) ∈ S} := by
+    intro S hS;
+    -- Since S is bounded, there exists some R such that for all (x, y) in S, x^2 + y^2 ≤ R^2.
+    obtain ⟨R, hR⟩ : ∃ R : ℝ, ∀ p ∈ S, p.1^2 + p.2^2 ≤ R^2 := by
+      obtain ⟨ R, hR ⟩ := hS.exists_pos_norm_le;
+      norm_num [ Prod.norm_def ] at hR;
+      exact ⟨ R + R, fun p hp =>
+        by nlinarith [ abs_le.mp ( hR.2 _ _ hp |>.1 ), abs_le.mp ( hR.2 _ _ hp |>.2 ) ] ⟩;
+    refine Set.Finite.subset ( Set.finite_Icc ( -⌈R^2⌉₊ : Fin 2 → ℤ ) ⌈R^2⌉₊ ) ?_;
+    intro x hx
+    constructor <;> intro i <;> fin_cases i <;> norm_num <;>
+      exact Int.le_of_lt_add_one <|
+      by { rw [ ← @Int.cast_lt ℝ ] ; push_cast ; nlinarith [ Nat.le_ceil ( R ^ 2 ), hR _ hx ] } ;
+  intro s hs
+  simp only [mem_cofinite]
+  obtain ⟨ t, ht, hts ⟩ := hs
+  specialize h_preimage_finite tᶜ
+  simp only [Bornology.isBounded_compl_iff, Fin.isValue, Set.mem_compl_iff] at h_preimage_finite
+  exact Set.Finite.subset ( h_preimage_finite ht ) fun x hx => by contrapose! hx; aesop;
+
+-- Aristotle
+theorem map_polarCoord_eq_cobounded :
+    Filter.map (polarCoord.symm) (atTop ×ˢ 𝓟 (Set.Icc (-π) π)) = Bornology.cobounded (ℝ × ℝ) := by
+  refine le_antisymm ?_ ?_
+  · intro T hT;
+    obtain ⟨R, hR⟩ : ∃ R > 0, ∀ p : ℝ × ℝ, p.1^2 + p.2^2 ≥ R^2 → p ∈ T := by
+      have h_cobounded : ∃ R > 0, ∀ p : ℝ × ℝ, p.1^2 + p.2^2 ≥ R^2 → p ∈ T := by
+        have h_compl_bounded : Bornology.IsBounded (Tᶜ) :=
+          Bornology.isBounded_compl_iff.mpr hT
+        obtain ⟨ R, hR ⟩ := h_compl_bounded.exists_pos_norm_le;
+        norm_num [ Prod.norm_def ] at hR;
+        exact ⟨ R * 2, mul_pos hR.1 zero_lt_two,
+          fun p hp => Classical.not_not.1 fun h => by
+            nlinarith [ abs_le.mp ( hR.2 _ _ h |>.1 ), abs_le.mp ( hR.2 _ _ h |>.2 ) ] ⟩;
+      exact h_cobounded;
+    refine Filter.mem_prod_iff.mpr ⟨ Set.Ici R, Filter.mem_atTop_sets.mpr ⟨ R, fun x hx => hx ⟩,
+      Set.Icc ( -Real.pi ) Real.pi, Filter.mem_principal_self _, ?_ ⟩;
+    rintro ⟨ r, θ ⟩ ⟨ hr, hθ ⟩ ;
+    exact hR.2 _ ( by simpa [ mul_pow, Real.cos_sq' ] using by nlinarith [ Set.mem_Ici.mp hr ] )
+  · refine fun s hs ↦ ?_;
+    obtain ⟨R, hR⟩ : ∃ R > 0, ∀ r ≥ R, ∀ θ ∈ Set.Icc (-Real.pi) Real.pi,
+        (r * Real.cos θ, r * Real.sin θ) ∈ s := by
+      rw [ Filter.mem_map, Filter.mem_prod_iff ] at hs;
+      norm_num +zetaDelta at *;
+      obtain ⟨ t₁, ⟨ a, ha ⟩, t₂, ht₂, h ⟩ := hs;
+      exact ⟨ Max.max a 1, by positivity,
+        fun r hr θ hθ₁ hθ₂ =>
+        h ( Set.mk_mem_prod ( ha r ( le_trans ( le_max_left _ _ ) hr ) ) ( ht₂ ⟨ hθ₁, hθ₂ ⟩ ) ) ⟩
+    have h_cobounded : ∀ p : ℝ × ℝ, Real.sqrt (p.1^2 + p.2^2) ≥ R → p ∈ s := by
+      intro p hp;
+      specialize hR;
+      have := hR.2 ( Real.sqrt ( p.1 ^ 2 + p.2 ^ 2 ) ) hp
+        ( Complex.arg ( p.1 + p.2 * Complex.I ) ) ?_
+      · simp_all only [mem_map, gt_iff_lt, ge_iff_le, Set.mem_Icc, and_imp, Complex.sin_arg,
+          Complex.add_im, Complex.ofReal_im, Complex.mul_im, Complex.ofReal_re, Complex.I_im,
+          mul_one, Complex.I_re, mul_zero, add_zero, zero_add]
+        by_cases h : p.1 + p.2 * Complex.I = 0
+        · simp_all [ Complex.ext_iff ]
+          linarith;
+        · simp_all [Complex.cos_arg, Complex.normSq, Complex.norm_def, sq ]
+          grind;
+      · exact ⟨ Complex.neg_pi_lt_arg _ |> le_of_lt, Complex.arg_le_pi _ ⟩;
+    refine Filter.mem_of_superset ?_ ?_ (x := { p : ℝ × ℝ | Real.sqrt ( p.1 ^ 2 + p.2 ^ 2 ) ≥ R })
+    · rw [ Metric.cobounded_eq_cocompact ];
+      rw [ Filter.mem_cocompact ];
+      refine ⟨ Metric.closedBall ( 0 : ℝ × ℝ ) R,
+        ProperSpace.isCompact_closedBall _ _, fun p hp => ?_ ⟩ ;
+      simp_all only [mem_map, gt_iff_lt, ge_iff_le, Set.mem_Icc, and_imp, Prod.forall,
+        Set.mem_compl_iff, Metric.mem_closedBall, dist_zero_right, not_le, Set.mem_setOf_eq]
+      exact le_trans hp.le ( max_le_iff.mpr ⟨
+        Real.abs_le_sqrt <| by nlinarith, Real.abs_le_sqrt <| by nlinarith ⟩ );
+    · grind
+
+theorem φ_isBigO_log : φ (n := 2) =O[cofinite] fun (x : Fin 2 → ℤ) ↦ log (x 0 ^ 2 + x 1 ^ 2) := by
+  rw [φ_2d]
+  apply IsBigO.const_mul_left
+  let disk : Set (ℝ × ℝ) := {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1}
+  have hdisk : disk ⊆ Set.Icc (-π) π ×ˢ Set.Icc (-π) π := sorry
+  have hdiskmeasureable : MeasurableSet disk := by measurability
+  have hintegrable (x : Fin 2 → ℤ) :
+      IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+      (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) volume := sorry
+  conv_lhs =>
+    ext x
+    rw [← integral_inter_add_diff hdiskmeasureable (hintegrable _), Set.inter_eq_right.mpr hdisk]
+  apply IsBigO.add; swap
+  ·
+    sorry
+
+  let zr (x : Fin 2 → ℤ) : ℝ × ℝ := (x 0, x 1)
+  trans (fun x ↦ ∫ w in disk, (1 - cos (x.1 * w.1 + x.2 * w.2)) / (w.1 ^ 2 + w.2 ^ 2)) ∘ zr
+  · unfold zr
+    rw [isBigO_iff]
+    use 100
+    refine Eventually.of_forall fun x ↦ ?_
+    rw [norm_eq_abs, abs_of_nonneg (integral_nonneg sorry)]
+    rw [Function.comp_apply, norm_eq_abs]
+    simp only
+    rw [abs_of_nonneg (integral_nonneg sorry)]
+    rw [← integral_const_mul]
+    refine setIntegral_mono_on ((hintegrable _).mono_set hdisk) ?_ hdiskmeasureable ?_
+    · sorry
+    · sorry
+  trans (fun x ↦ log (x.1 ^ 2 + x.2 ^ 2)) ∘ zr; swap
+  · rfl
+  rw [← isBigO_map]
+  refine IsBigO.mono ?_ cofinite_int_le_cobounded_real
+  rw [← map_polarCoord_eq_cobounded, isBigO_map]
+  change (fun x ↦ ∫ (w : ℝ × ℝ) in {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1},
+    (1 - cos ((x.1 * cos x.2) * w.1 + (x.1 * sin x.2) * w.2)) / (w.1 ^ 2 + w.2 ^ 2))
+    =O[atTop ×ˢ 𝓟 (Set.Icc (-π) π)]
+    fun x ↦ log ((x.1 * cos x.2) ^ 2 + (x.1 * sin x.2) ^ 2)
+  conv_lhs =>
+    ext x
+    rw [← integral_comp_polarCoord_symm_disk]
+    simp only [mul_pow, ← mul_add, cos_sq_add_sin_sq, mul_one, smul_eq_mul]
+    conv in fun p ↦ _ =>
+      ext p
+      rw [mul_mul_mul_comm x.1 _ p.1, mul_mul_mul_comm x.1 _ p.1]
+      rw [← mul_add, mul_comm (cos x.2), mul_comm (sin x.2), ← cos_sub]
+      rw [mul_comm p.1, div_mul]
+      rw [show p.1 ^ 2 / p.1 = p.1 by grind]
+    rw [Measure.volume_eq_prod, setIntegral_prod _ sorry]
+    simp only
+    conv in fun r ↦ _ =>
+      ext r
+      rw [← integral_Ioc_eq_integral_Ioo, ← intervalIntegral.integral_of_le (by simp [pi_nonneg])]
+      rw [intervalIntegral.integral_comp_sub_right (fun θ ↦ (1 - cos (x.1 * r * cos θ)) / r) x.2]
+      rw [show π - x.2 = -π - x.2 + 2 * π by ring]
+      rw [Function.Periodic.intervalIntegral_add_eq (by intro x; simp) _ (-π)]
+      rw [show -π + 2 * π = π by ring]
+      conv in fun θ ↦ _ =>
+        ext θ
+        rw [show (1 - cos (x.1 * r * cos θ)) / r =
+            x.1 • ((1 - cos (x.1 * r * cos θ)) / (x.1 * r)) by
+          by_cases h0 : x.1 = 0
+          · simp [h0]
+          nth_rw 3 [mul_comm x.1 r]
+          rw [← div_div]
+          rw [smul_eq_mul, mul_div_cancel₀ _ h0]]
+      rw [intervalIntegral.integral_smul]
+    rw [← intervalIntegral.integral_of_le (by simp), intervalIntegral.integral_smul]
+    rw [intervalIntegral.smul_integral_comp_mul_left
+      (fun r ↦ ∫ θ in -π..π, (1 - cos (r * cos θ)) / r) x.1]
+    rw [mul_zero, mul_one]
+  conv_rhs =>
+    ext x
+    rw [mul_pow, mul_pow, ← mul_add, cos_sq_add_sin_sq, mul_one, log_pow]
+  apply IsBigO.const_mul_right (by simp)
+  exact asymptotic_bessel.comp_fst _
+
 
 theorem bddAbove_φ (hn : 3 ≤ n) : BddAbove (Set.range <| φ (n := n)) := by
   obtain habs := abs_φ_le hn
