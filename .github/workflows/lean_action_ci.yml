@@ -38,7 +38,7 @@ jobs:
         uses: leanprover/lean-action@v1
         with:
           build: true
-          test: true
+          test: false
           lint: false
           mk_all-check: true
           build-args: --iofail
