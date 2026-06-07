@@ -227,15 +227,15 @@ def unitCur (c x : Fin n → ℤ) : ℝ := Pi.single (M := fun (_ : Fin n → �
 
 open Classical in
 def equivResistance (x : Fin n → ℤ) : Option ℝ :=
-  if h : ∃ pot, IsElectricPotential (unitCur x - unitCur 0) pot then
+  if h : ∃ pot, IsElectricPotential (unitCur 0 - unitCur x) pot then
     some <| h.choose x - h.choose 0
   else
     none
 
 theorem equivResistance_eq [NeZero n] {x : Fin n → ℤ} {pot : (Fin n → ℤ) → ℝ}
-    (h : IsElectricPotential (unitCur x - unitCur 0) pot) :
+    (h : IsElectricPotential (unitCur 0 - unitCur x) pot) :
     equivResistance x = some (pot x - pot 0) := by
-  have h' : ∃ pot, IsElectricPotential (unitCur x - unitCur 0) pot := ⟨pot, h⟩
+  have h' : ∃ pot, IsElectricPotential (unitCur 0 - unitCur x) pot := ⟨pot, h⟩
   obtain ⟨c, hc⟩ := isElectrictPotential_unique h'.choose_spec h
   rw [sub_eq_iff_eq_add] at hc
   simp [equivResistance, h', hc]
@@ -485,11 +485,10 @@ theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
   apply le_of_eq
   ring
 
-theorem φ_2d :
-    φ = fun (x : Fin 2 → ℤ) ↦ (4 * π ^ 2)⁻¹ * ∫ w in Set.Icc (-π) π ×ˢ Set.Icc (-π) π,
+theorem φ_2d (x : Fin 2 → ℤ):
+    φ x = (4 * π ^ 2)⁻¹ * ∫ w in Set.Icc (-π) π ×ˢ Set.Icc (-π) π,
     (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)) := by
   unfold φ
-  ext x
   rw [Measure.volume_eq_prod, ← Measure.prod_restrict]
   rw [← (measurePreserving_finTwoArrow _).integral_comp']
   rw [← Measure.restrict_pi_pi]
@@ -821,9 +820,9 @@ theorem isEquivalent_circle_integral :
   · apply sin_cube_bound ⟨hw2l.le, hw2r.le⟩
 
 theorem φ_equiv_log_2d :
-    (φ (n := 2) - fun (x : Fin 2 → ℤ) ↦ (4 * π)⁻¹ * log (x 0 ^ 2 + x 1 ^ 2)) =O[cofinite]
+    (fun (x : Fin 2 → ℤ) ↦ φ x - (4 * π)⁻¹ * log (x 0 ^ 2 + x 1 ^ 2)) =O[cofinite]
     (1 : (Fin 2 → ℤ) → ℝ) := by
-  rw [φ_2d]
+  simp_rw [φ_2d]
   let disk : Set (ℝ × ℝ) := {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1}
   let odisk : Set (ℝ × ℝ) := {p | p.1 ^ 2 + p.2 ^ 2 < 1}
   have hodisk : IsOpen odisk := by
@@ -834,12 +833,11 @@ theorem φ_equiv_log_2d :
     grind
   have hdiskmeasureable : MeasurableSet disk := by measurability
   conv_lhs =>
-    left
     ext x
     rw [← integral_inter_add_diff hdiskmeasureable (φ_integrable_2d _),
       Set.inter_eq_right.mpr disk_subset']
     rw [mul_add]
-  rw [← Pi.add_def, add_sub_right_comm]
+    rw [add_sub_right_comm]
   apply IsBigO.add; swap
   · apply IsBigO.const_mul_left
     rw [isBigO_iff]
@@ -879,7 +877,7 @@ theorem φ_equiv_log_2d :
       · rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
         exact add_nonneg (by simpa using cos_le_one _) (by simpa using cos_le_one _)
   rw [← (isEquivalent_circle_integral.const_mul_left (4 * π ^ 2)⁻¹).sub_iff_left]
-  simp_rw [Pi.sub_apply, mul_sub, sub_sub_sub_cancel_left]
+  simp_rw [mul_sub, sub_sub_sub_cancel_left]
   let zr (x : Fin 2 → ℤ) : ℝ × ℝ := (x 0, x 1)
   change ((fun (x : ℝ × ℝ) ↦ ((4 * π ^ 2)⁻¹ * ∫ (w : ℝ × ℝ) in {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1},
       (1 - cos (x.1 * w.1 + x.2 * w.2)) / (w.1 ^ 2 + w.2 ^ 2)) -
@@ -1094,16 +1092,16 @@ theorem φ_kirchhoff [NeZero n] (x : Fin n → ℤ) :
   rw [integral_congr_ae (hcongr _)]
   rw [← fourier_unitCur]
 
-theorem φ_one_off_center (e : Fin n) : φ (Pi.single e 1) = (2 * n : ℝ)⁻¹ := by
+theorem φ_off_center (e : Fin n) : φ (Pi.single e 1) = (2 * n : ℝ)⁻¹ := by
   have : NeZero n := e.neZero
   apply eq_inv_of_mul_eq_one_right
   simpa [φ_single_perm _ 0, ← two_mul, unitCur, ← mul_assoc] using φ_kirchhoff (n := n) 0
 
-theorem φ_one_dimensional_nat (x : ℕ) : φ ![x] = 2⁻¹ * x := by
+theorem φ_1d_nat (x : ℕ) : φ ![x] = 2⁻¹ * x := by
   induction x using Nat.twoStepInduction with
   | zero => exact φ_zero.trans (by simp)
   | one =>
-    refine Eq.trans ?_ ((φ_one_off_center (0 : Fin 1)).trans ?_)
+    refine Eq.trans ?_ ((φ_off_center (0 : Fin 1)).trans ?_)
     · rfl
     · simp
   | more n h1 h2 =>
@@ -1114,13 +1112,32 @@ theorem φ_one_dimensional_nat (x : ℕ) : φ ![x] = 2⁻¹ * x := by
     simp [Matrix.vecHead, h1, h2] at h
     linear_combination h
 
-theorem φ_one_dimensional (x : ℤ) : φ ![x] = 2⁻¹ * |x| := by
+theorem φ_1d (x : ℤ) : φ ![x] = 2⁻¹ * |x| := by
   obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg x
-  · simp [φ_one_dimensional_nat]
+  · simp [φ_1d_nat]
   · trans φ (-![(n : ℤ)])
     · simp
-    · rw [φ_neg, φ_one_dimensional_nat]
+    · rw [φ_neg, φ_1d_nat]
       simp
+
+theorem φ_1d' (x : Fin 1 → ℤ) : φ x = 2⁻¹ * |x 0| := by
+  rw [show x = ![x 0] by
+    ext i
+    fin_cases i
+    simp
+  ]
+  rw [φ_1d]
+  simp
+
+theorem bound_φ_1d (a b : Fin 1 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - b)| ≤ c := by
+  use 2⁻¹ * |b 0 - a 0|
+  intro x
+  simp_rw [φ_1d']
+  simp only [Fin.isValue, Pi.sub_apply, Int.cast_abs, Int.cast_sub]
+  rw [← mul_sub, abs_mul, abs_of_nonneg (by simp)]
+  refine mul_le_mul_of_nonneg_left ?_ (by simp)
+  grw [abs_abs_sub_abs_le_abs_sub]
+  simp
 
 theorem isElectricPotential_φ [NeZero n] (a b : Fin n → ℤ) :
     IsElectricPotential (unitCur a - unitCur b) (fun x ↦ φ (x - a) - φ (x - b)) where
@@ -1152,24 +1169,632 @@ theorem isElectricPotential_φ [NeZero n] (a b : Fin n → ℤ) :
       · simp [h]
       · have : x - b ≠ 0 := sub_eq_zero.ne.mpr h
         simp [h, this]
-  bddAbove := sorry
-  bddBelow := sorry
-  /-boundary := by
-    unfold φ
-    conv in fun x ↦ _ =>
-      ext x
-      rw [← mul_sub]
-      rw [← integral_sub sorry sorry]
-      conv in fun w ↦ _ - _ =>
-        ext w
-        rw [← sub_div, sub_sub_sub_cancel_left, cos_sub_cos, ← Finset.sum_add_distrib,
-          ← Finset.sum_sub_distrib]
-        conv in fun k ↦ _ * _ + _ * _ =>
-          ext k
-          rw [← add_mul, ← Int.cast_add, ← Pi.add_apply, sub_add_sub_comm, ← two_mul]
-        conv in fun k ↦ _ * _ - _ * _ =>
-          ext k
-          rw [← sub_mul, ← Int.cast_sub, ← Pi.sub_apply, sub_sub_sub_cancel_left]
+  bddAbove := match hn : n with
+  | 0 => by simp
+  | 1 => by
+    obtain ⟨c, hc⟩ := bound_φ_1d a b
+    use c
+    suffices ∀ x, φ (x - a) - φ (x - b) ≤ c by simpa [mem_upperBounds]
+    exact fun x ↦ (le_abs_self _).trans (hc x)
+  | 2 => by
+    obtain ⟨c, hc⟩ := bound_φ_2d a b
+    use c
+    suffices ∀ x, φ (x - a) - φ (x - b) ≤ c by simpa [mem_upperBounds]
+    exact fun x ↦ (le_abs_self _).trans (hc x)
+  | n + 3 => by
+    apply bddAbove_range_sub
+    · change BddAbove (Set.range (φ ∘ fun x ↦ (x - a)))
+      apply BddAbove.mono (Set.range_comp_subset_range _ _)
+      exact bddAbove_φ (by simp)
+    · change BddBelow (Set.range (φ ∘ fun x ↦ (x - b)))
+      apply BddBelow.mono (Set.range_comp_subset_range _ _)
+      exact bddBelow_φ
+  bddBelow := match hn : n with
+  | 0 => by simp
+  | 1 => by
+    obtain ⟨c, hc⟩ := bound_φ_1d a b
+    use -c
+    suffices ∀ x, -c ≤ φ (x - a) - φ (x - b) by simpa [mem_lowerBounds]
+    exact fun x ↦ le_trans (by simpa using hc x) (neg_abs_le _)
+  | 2 => by
+    obtain ⟨c, hc⟩ := bound_φ_2d a b
+    use -c
+    suffices ∀ x, -c ≤ φ (x - a) - φ (x - b) by simpa [mem_lowerBounds]
+    exact fun x ↦ le_trans (by simpa using hc x) (neg_abs_le _)
+  | n + 3 => by
+    apply bddBelow_range_sub
+    · change BddBelow (Set.range (φ ∘ fun x ↦ (x - a)))
+      apply BddBelow.mono (Set.range_comp_subset_range _ _)
+      exact bddBelow_φ
+    · change BddAbove (Set.range (φ ∘ fun x ↦ (x - b)))
+      apply BddAbove.mono (Set.range_comp_subset_range _ _)
+      exact bddAbove_φ (by simp)
 
-    sorry
--/
+theorem equivResistance_eq_two_mul_φ [NeZero n] (x : Fin n → ℤ) :
+    equivResistance x = some (2 * φ x) := by
+  rw [equivResistance_eq (isElectricPotential_φ 0 x)]
+  simp [two_mul]
+
+theorem equivResistance_off_center [NeZero n] (e : Fin n) :
+    equivResistance (Pi.single e 1) = some ((n : ℝ)⁻¹) := by
+  rw [equivResistance_eq_two_mul_φ, φ_off_center, mul_inv, ← mul_assoc, mul_inv_cancel₀ (by simp),
+    one_mul]
+
+def triangleU : Set (ℝ × ℝ) := {p | π ≤ p.2 ∧ p.1 + p.2 ≤ 2 * π ∧ p.2 - p.1 ≤ 2 * π}
+def triangleD : Set (ℝ × ℝ) := {p | p.2 ≤ -π ∧ -2 * π ≤ p.1 + p.2 ∧ -2 * π ≤ p.2 - p.1}
+def triangleL : Set (ℝ × ℝ) := {p | p.1 ≤ -π ∧ -2 * π ≤ p.1 + p.2 ∧ p.2 - p.1 ≤ 2 * π}
+def triangleR : Set (ℝ × ℝ) := {p | π ≤ p.1 ∧ p.1 + p.2 ≤ 2 * π ∧ -2 * π ≤ p.2 - p.1}
+def diamond : Set (ℝ × ℝ) :=
+  {p | p.1 + p.2 ≤ 2 * π ∧ -2 * π ≤ p.1 + p.2 ∧ p.2 - p.1 ≤ 2 * π ∧ -2 * π ≤ p.2 - p.1}
+
+-- MeasureTheory.MeasurePreserving.add_left
+-- MeasurableEquiv.addLeft
+-- MeasureTheory.MeasurePreserving.setIntegral_image_emb
+
+theorem diamond_decomp :
+    diamond =
+    triangleU ∪ triangleD ∪ triangleL ∪ triangleR ∪ (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) := by
+  apply Set.Subset.antisymm
+  · intro p hp
+    by_cases hp2 : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π
+    · apply Set.mem_union_right _ hp2
+    rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc] at hp2
+    push +distrib Not at hp2
+    simp only [diamond, Set.mem_setOf_eq] at hp
+    obtain (hp2 | hp2) | (hp2 | hp2) := hp2
+    · suffices p ∈ triangleL by simp [this]
+      simp only [triangleL, Set.mem_setOf_eq]
+      refine ⟨hp2.le, ?_, ?_⟩ <;> linarith
+    · suffices p ∈ triangleR by simp [this]
+      simp only [triangleR, Set.mem_setOf_eq]
+      refine ⟨hp2.le, ?_, ?_⟩ <;> linarith
+    · suffices p ∈ triangleD by simp [this]
+      simp only [triangleD, Set.mem_setOf_eq]
+      refine ⟨hp2.le, ?_, ?_⟩ <;> linarith
+    · suffices p ∈ triangleU by simp [this]
+      simp only [triangleU, Set.mem_setOf_eq]
+      refine ⟨hp2.le, ?_, ?_⟩ <;> linarith
+  · refine Set.union_subset (Set.union_subset (Set.union_subset (Set.union_subset ?_ ?_) ?_) ?_) ?_
+    · intro p hp
+      simp only [triangleU, Set.mem_setOf_eq] at hp
+      obtain ⟨hp1, hp2, hp3⟩ := hp
+      simp only [diamond, Set.mem_setOf_eq]
+      refine ⟨hp2, ?_, hp3, ?_⟩ <;> linarith
+    · intro p hp
+      simp only [triangleD, Set.mem_setOf_eq] at hp
+      obtain ⟨hp1, hp2, hp3⟩ := hp
+      simp only [diamond, Set.mem_setOf_eq]
+      refine ⟨?_, hp2, ?_, hp3⟩ <;> linarith
+    · intro p hp
+      simp only [triangleL, Set.mem_setOf_eq] at hp
+      obtain ⟨hp1, hp2, hp3⟩ := hp
+      simp only [diamond, Set.mem_setOf_eq]
+      refine ⟨?_, hp2, hp3, ?_⟩ <;> linarith
+    · intro p hp
+      simp only [triangleR, Set.mem_setOf_eq] at hp
+      obtain ⟨hp1, hp2, hp3⟩ := hp
+      simp only [diamond, Set.mem_setOf_eq]
+      refine ⟨hp2, ?_, ?_, hp3⟩ <;> linarith
+    · intro p hp
+      rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc] at hp
+      simp only [diamond, Set.mem_setOf_eq]
+      refine ⟨?_, ?_, ?_, ?_⟩ <;> linarith
+
+theorem square_comp :
+    (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) =
+    (MeasurableEquiv.addRight (0, -2 * π) '' triangleU) ∪
+    (MeasurableEquiv.addRight (0, 2 * π) '' triangleD) ∪
+    (MeasurableEquiv.addRight (2 * π, 0) '' triangleL) ∪
+    (MeasurableEquiv.addRight (-2 * π, 0) '' triangleR) := by
+  apply Set.Subset.antisymm
+  · intro p hp
+    rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc] at hp
+    simp_rw [Set.mem_union]
+    rcases le_total p.1 p.2 with h1 | h1
+    · rcases le_total p.1 (-p.2) with h2 | h2
+      · suffices p ∈ MeasurableEquiv.addRight (-2 * π, 0) '' triangleR by
+          simp only [this]
+          simp
+        simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleR,
+          Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq]
+        refine ⟨?_, ?_, ?_⟩ <;> linarith
+      · suffices p ∈ MeasurableEquiv.addRight (0, 2 * π) '' triangleD by
+          simp only [this]
+          simp
+        simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleD,
+          Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq]
+        refine ⟨?_, ?_, ?_⟩ <;> linarith
+    · rcases le_total p.1 (-p.2) with h2 | h2
+      · suffices p ∈ MeasurableEquiv.addRight (0, -2 * π) '' triangleU by
+          simp only [this]
+          simp
+        simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleU,
+          Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq]
+        refine ⟨?_, ?_, ?_⟩ <;> linarith
+      · suffices p ∈ MeasurableEquiv.addRight (2 * π, 0) '' triangleL by
+          simp only [this]
+          simp
+        simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleL,
+          Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq]
+        refine ⟨?_, ?_, ?_⟩ <;> linarith
+  · refine Set.union_subset (Set.union_subset (Set.union_subset ?_ ?_) ?_) ?_
+    · intro p hp
+      simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleU,
+        Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq] at hp
+      rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc]
+      refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩⟩ <;> linarith
+    · intro p hp
+      simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleD,
+        Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq] at hp
+      rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc]
+      refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩⟩ <;> linarith
+    · intro p hp
+      simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleL,
+        Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq] at hp
+      rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc]
+      refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩⟩ <;> linarith
+    · intro p hp
+      simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleR,
+        Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq] at hp
+      rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc]
+      refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩⟩ <;> linarith
+
+theorem φ_integrable_mapU (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    (MeasurableEquiv.addRight (0, -2 * π) '' triangleU) := by
+  apply (φ_integrable_2d x).mono_set
+  rw [square_comp]
+  grind
+
+theorem φ_integrable_mapD (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    (MeasurableEquiv.addRight (0, 2 * π) '' triangleD) := by
+  apply (φ_integrable_2d x).mono_set
+  rw [square_comp]
+  grind
+
+theorem φ_integrable_mapL (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    (MeasurableEquiv.addRight (2 * π, 0) '' triangleL) := by
+  apply (φ_integrable_2d x).mono_set
+  rw [square_comp]
+  grind
+
+theorem φ_integrable_mapR (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    (MeasurableEquiv.addRight (-2 * π, 0) '' triangleR) := by
+  apply (φ_integrable_2d x).mono_set
+  rw [square_comp]
+  grind
+
+theorem φ_integrable_U (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    triangleU := by
+  obtain h := φ_integrable_mapU x
+  rw [MeasurePreserving.integrableOn_image (by exact measurePreserving_add_right _ _)
+    (MeasurableEquiv.measurableEmbedding _)] at h
+  convert h with p
+  simp only [Fin.isValue, neg_mul, MeasurableEquiv.coe_addRight, Function.comp_apply, Prod.fst_add,
+    add_zero, Prod.snd_add, ← sub_eq_add_neg, cos_sub_two_pi]
+  congrm (1 - ?_) / $(by simp)
+  rw [mul_sub, ← add_sub_assoc, Real.cos_sub_int_mul_two_pi]
+
+theorem φ_integrable_D (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    triangleD := by
+  obtain h := φ_integrable_mapD x
+  rw [MeasurePreserving.integrableOn_image (by exact measurePreserving_add_right _ _)
+    (MeasurableEquiv.measurableEmbedding _)] at h
+  convert h with p
+  simp only [Fin.isValue, MeasurableEquiv.coe_addRight, Function.comp_apply, Prod.fst_add, add_zero,
+    Prod.snd_add, cos_add_two_pi]
+  congrm (1 - ?_) / $(by simp)
+  rw [mul_add, ← add_assoc, Real.cos_add_int_mul_two_pi]
+
+theorem φ_integrable_L (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    triangleL := by
+  obtain h := φ_integrable_mapL x
+  rw [MeasurePreserving.integrableOn_image (by exact measurePreserving_add_right _ _)
+    (MeasurableEquiv.measurableEmbedding _)] at h
+  convert h with p
+  simp only [Fin.isValue, MeasurableEquiv.coe_addRight, Function.comp_apply, Prod.fst_add, add_zero,
+    Prod.snd_add, cos_add_two_pi]
+  congrm (1 - ?_) / $(by simp)
+  rw [mul_add, add_right_comm, Real.cos_add_int_mul_two_pi]
+
+theorem φ_integrable_R (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    triangleR := by
+  obtain h := φ_integrable_mapR x
+  rw [MeasurePreserving.integrableOn_image (by exact measurePreserving_add_right _ _)
+    (MeasurableEquiv.measurableEmbedding _)] at h
+  convert h with p
+  simp only [Fin.isValue, neg_mul, MeasurableEquiv.coe_addRight, Function.comp_apply, Prod.fst_add,
+    add_zero, Prod.snd_add, ← sub_eq_add_neg, cos_sub_two_pi]
+  congrm (1 - ?_) / $(by simp)
+  rw [mul_sub, ← add_sub_right_comm, Real.cos_sub_int_mul_two_pi]
+
+theorem φ_integrable_diamond (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    diamond := by
+  rw [diamond_decomp]
+  refine IntegrableOn.union ?_ (φ_integrable_2d x)
+  refine IntegrableOn.union ?_ (φ_integrable_R x)
+  refine IntegrableOn.union ?_ (φ_integrable_L x)
+  exact IntegrableOn.union (φ_integrable_U x) (φ_integrable_D x)
+
+theorem disjoint_U_D : AEDisjoint volume triangleU triangleD := by
+  apply Disjoint.aedisjoint
+  apply Set.disjoint_left.mpr fun p h1 h2 ↦ ?_
+  simp [triangleU] at h1
+  simp [triangleD] at h2
+  linarith [pi_pos]
+
+theorem disjoint_U_L : AEDisjoint volume triangleU triangleL := by
+  suffices triangleU ∩ triangleL ⊆ {(-π, π)} from Measure.mono_null this (by simp)
+  intro p hp
+  simp only [triangleU, triangleL, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_singleton_iff]
+  ext
+  · simp only
+    linarith
+  · simp only
+    linarith
+
+theorem disjoint_D_L : AEDisjoint volume triangleD triangleL := by
+  suffices triangleD ∩ triangleL ⊆ {(-π, -π)} from Measure.mono_null this (by simp)
+  intro p hp
+  simp only [triangleD, triangleL, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_singleton_iff]
+  ext
+  · simp only
+    linarith
+  · simp only
+    linarith
+
+theorem disjoint_U_R : AEDisjoint volume triangleU triangleR := by
+  suffices triangleU ∩ triangleR ⊆ {(π, π)} from Measure.mono_null this (by simp)
+  intro p hp
+  simp only [triangleU, triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_singleton_iff]
+  ext
+  · simp only
+    linarith
+  · simp only
+    linarith
+
+theorem disjoint_D_R : AEDisjoint volume triangleD triangleR := by
+  suffices triangleD ∩ triangleR ⊆ {(π, -π)} from Measure.mono_null this (by simp)
+  intro p hp
+  simp only [triangleD, triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_singleton_iff]
+  ext
+  · simp only
+    linarith
+  · simp only
+    linarith
+
+theorem disjoint_L_R : AEDisjoint volume triangleL triangleR := by
+  apply Disjoint.aedisjoint
+  apply Set.disjoint_left.mpr fun p h1 h2 ↦ ?_
+  simp [triangleL] at h1
+  simp [triangleR] at h2
+  linarith [pi_pos]
+
+theorem disjoint_U_sq : AEDisjoint volume triangleU (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) := by
+  suffices triangleU ∩ (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) ⊆ Set.univ ×ˢ {π} by
+    apply Measure.mono_null this
+    simp [Measure.volume_eq_prod]
+  intro p hp
+  simp only [triangleU, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_prod, Set.mem_Icc] at hp
+  simp only [Set.mem_prod, Set.mem_univ, Set.mem_singleton_iff, true_and]
+  linarith
+
+theorem disjoint_D_sq : AEDisjoint volume triangleD (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) := by
+  suffices triangleD ∩ (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) ⊆ Set.univ ×ˢ {-π} by
+    apply Measure.mono_null this
+    simp [Measure.volume_eq_prod]
+  intro p hp
+  simp only [triangleD, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_prod, Set.mem_Icc] at hp
+  simp only [Set.mem_prod, Set.mem_univ, Set.mem_singleton_iff, true_and]
+  linarith
+
+theorem disjoint_L_sq : AEDisjoint volume triangleL (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) := by
+  suffices triangleL ∩ (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) ⊆ {-π} ×ˢ Set.univ by
+    apply Measure.mono_null this
+    simp [Measure.volume_eq_prod]
+  intro p hp
+  simp only [triangleL, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_prod, Set.mem_Icc] at hp
+  simp only [Set.mem_prod, Set.mem_singleton_iff, Set.mem_univ, and_true]
+  linarith
+
+theorem disjoint_R_sq : AEDisjoint volume triangleR (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) := by
+  suffices triangleR ∩ (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) ⊆ {π} ×ˢ Set.univ by
+    apply Measure.mono_null this
+    simp [Measure.volume_eq_prod]
+  intro p hp
+  simp only [triangleR, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_prod, Set.mem_Icc] at hp
+  simp only [Set.mem_prod, Set.mem_singleton_iff, Set.mem_univ, and_true]
+  linarith
+
+theorem disjoint_map_U_D : AEDisjoint volume (MeasurableEquiv.addRight (0, -2 * π) '' triangleU)
+    (MeasurableEquiv.addRight (0, 2 * π) '' triangleD) := by
+  suffices (MeasurableEquiv.addRight (0, -2 * π) '' triangleU) ∩
+      (MeasurableEquiv.addRight (0, 2 * π) '' triangleD) ⊆ {(0, 0)} by
+    apply Measure.mono_null this
+    simp
+  intro p hp
+  simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
+    triangleU, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
+    triangleD, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_singleton_iff]
+  ext
+  · simp only
+    linarith
+  · simp only
+    linarith
+
+theorem null_volume_diag : volume ({p | p.1 = p.2} : Set (ℝ × ℝ)) = 0 := by
+  let f : (ℝ × ℝ) →ₗ[ℝ] (ℝ × ℝ) := {
+    toFun p := (p.1, p.1)
+    map_add' a b := by simp
+    map_smul' c a := by simp
+  }
+  have hmap : ({p | p.1 = p.2} : Set (ℝ × ℝ)) = f '' Set.univ := by
+    aesop
+  have hf : LinearMap.det f = 0 := by
+    rw [LinearMap.det_eq_zero_iff_ker_ne_bot, Submodule.ne_bot_iff]
+    use (0, 1)
+    simp [f]
+  rw [hmap, Measure.addHaar_image_linearMap, hf]
+  simp
+
+theorem null_volume_diag' : volume ({p | p.1 = -p.2} : Set (ℝ × ℝ)) = 0 := by
+  let f : (ℝ × ℝ) →ₗ[ℝ] (ℝ × ℝ) := {
+    toFun p := (p.1, -p.1)
+    map_add' a b := by simp [add_comm]
+    map_smul' c a := by simp
+  }
+  have hmap : ({p | p.1 = -p.2} : Set (ℝ × ℝ)) = f '' Set.univ := by
+    aesop
+  have hf : LinearMap.det f = 0 := by
+    rw [LinearMap.det_eq_zero_iff_ker_ne_bot, Submodule.ne_bot_iff]
+    use (0, 1)
+    simp [f]
+  rw [hmap, Measure.addHaar_image_linearMap, hf]
+  simp
+
+theorem disjoint_map_U_L : AEDisjoint volume (MeasurableEquiv.addRight (0, -2 * π) '' triangleU)
+    (MeasurableEquiv.addRight (2 * π, 0) '' triangleL) := by
+  suffices (MeasurableEquiv.addRight (0, -2 * π) '' triangleU) ∩
+      (MeasurableEquiv.addRight (2 * π, 0) '' triangleL) ⊆ {p | p.1 = -p.2} by
+    exact Measure.mono_null this null_volume_diag'
+  intro p hp
+  simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
+    triangleU, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
+    triangleL, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_setOf_eq]
+  linarith
+
+theorem disjoint_map_D_L : AEDisjoint volume (MeasurableEquiv.addRight (0, 2 * π) '' triangleD)
+    (MeasurableEquiv.addRight (2 * π, 0) '' triangleL) := by
+  suffices (MeasurableEquiv.addRight (0, 2 * π) '' triangleD) ∩
+      (MeasurableEquiv.addRight (2 * π, 0) '' triangleL) ⊆ {p | p.1 = p.2} by
+    exact Measure.mono_null this null_volume_diag
+  intro p hp
+  simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
+    triangleD, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
+    triangleL, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_setOf_eq]
+  linarith
+
+theorem disjoint_map_U_R : AEDisjoint volume (MeasurableEquiv.addRight (0, -2 * π) '' triangleU)
+    (MeasurableEquiv.addRight (-2 * π, 0) '' triangleR) := by
+  suffices (MeasurableEquiv.addRight (0, -2 * π) '' triangleU) ∩
+      (MeasurableEquiv.addRight (-2 * π, 0) '' triangleR) ⊆ {p | p.1 = p.2} by
+    exact Measure.mono_null this null_volume_diag
+  intro p hp
+  simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
+    triangleU, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
+    triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_setOf_eq]
+  linarith
+
+theorem disjoint_map_D_R : AEDisjoint volume (MeasurableEquiv.addRight (0, 2 * π) '' triangleD)
+    (MeasurableEquiv.addRight (-2 * π, 0) '' triangleR) := by
+  suffices (MeasurableEquiv.addRight (0, 2 * π) '' triangleD) ∩
+      (MeasurableEquiv.addRight (-2 * π, 0) '' triangleR) ⊆ {p | p.1 = -p.2} by
+    exact Measure.mono_null this null_volume_diag'
+  intro p hp
+  simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
+    triangleD, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
+    triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_setOf_eq]
+  linarith
+
+theorem disjoint_map_L_R : AEDisjoint volume (MeasurableEquiv.addRight (2 * π, 0) '' triangleL)
+    (MeasurableEquiv.addRight (-2 * π, 0) '' triangleR) := by
+  suffices (MeasurableEquiv.addRight (2 * π, 0) '' triangleL) ∩
+      (MeasurableEquiv.addRight (-2 * π, 0) '' triangleR) ⊆ {(0, 0)} by
+    apply Measure.mono_null this
+    simp
+  intro p hp
+  simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
+    triangleL, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
+    triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  rw [Set.mem_singleton_iff]
+  ext
+  · simp only
+    linarith
+  · simp only
+    linarith
+
+theorem φ_2d_diamond (x : Fin 2 → ℤ) :
+    φ x = (8 * π ^ 2)⁻¹ * ∫ w in diamond,
+    (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)) := by
+  rw [show (8 * π ^ 2)⁻¹ = 2⁻¹ * (4 * π ^ 2)⁻¹ by ring]
+  rw [diamond_decomp]
+  rw [setIntegral_union₀
+    (((disjoint_U_sq.union_left disjoint_D_sq).union_left disjoint_L_sq).union_left disjoint_R_sq)
+    (by measurability)
+    (((((φ_integrable_U x).union (φ_integrable_D x))).union (φ_integrable_L x)).union
+    (φ_integrable_R x)) (φ_integrable_2d x)]
+  rw [mul_assoc, mul_add]
+  rw [← φ_2d, mul_add]
+  rw [← sub_eq_iff_eq_add, ← one_sub_mul, show (1 - 2⁻¹ : ℝ) = 2⁻¹ by ring]
+  rw [φ_2d, square_comp]
+  rw [setIntegral_union₀
+    ((disjoint_map_U_R.union_left disjoint_map_D_R).union_left disjoint_map_L_R)
+    (by unfold triangleR; measurability)
+    ((((φ_integrable_mapU x).union (φ_integrable_mapD x))).union (φ_integrable_mapL x))
+    (φ_integrable_mapR x)]
+  rw [setIntegral_union₀ (disjoint_map_U_L.union_left disjoint_map_D_L)
+    (by unfold triangleL; measurability)
+    ((φ_integrable_mapU x).union (φ_integrable_mapD x)) (φ_integrable_mapL x)]
+  rw [setIntegral_union₀ disjoint_map_U_D (by unfold triangleD; measurability)
+    (φ_integrable_mapU x) (φ_integrable_mapD x)]
+  rw [setIntegral_union₀ ((disjoint_U_R.union_left disjoint_D_R).union_left disjoint_L_R)
+    (by unfold triangleR; measurability)
+    ((((φ_integrable_U x).union (φ_integrable_D x))).union (φ_integrable_L x))
+    (φ_integrable_R x)]
+  rw [setIntegral_union₀ (disjoint_U_L.union_left disjoint_D_L) (by unfold triangleL; measurability)
+    ((φ_integrable_U x).union (φ_integrable_D x)) (φ_integrable_L x)]
+  rw [setIntegral_union₀ disjoint_U_D (by unfold triangleD; measurability)
+    (φ_integrable_U x) (φ_integrable_D x)]
+  congrm _ * (_ * (?_ + ?_ + ?_ + ?_))
+  <;> rw [MeasurePreserving.setIntegral_image_emb
+      (by exact measurePreserving_add_right _ _) (MeasurableEquiv.measurableEmbedding _)]
+  · simp only [Fin.isValue, neg_mul, MeasurableEquiv.coe_addRight, Prod.fst_add, add_zero,
+      Prod.snd_add, ← sub_eq_add_neg, cos_sub_two_pi]
+    congrm ∫ p in _, (1 - ?_) / $(by simp)
+    rw [mul_sub, ← add_sub_assoc, Real.cos_sub_int_mul_two_pi]
+  · simp only [Fin.isValue, MeasurableEquiv.coe_addRight, Prod.fst_add, add_zero, Prod.snd_add,
+      cos_add_two_pi]
+    congrm ∫ p in _, (1 - ?_) / _
+    rw [mul_add, ← add_assoc, Real.cos_add_int_mul_two_pi]
+  · simp only [Fin.isValue, MeasurableEquiv.coe_addRight, Prod.fst_add, Prod.snd_add, add_zero,
+      cos_add_two_pi]
+    congrm ∫ p in _, (1 - ?_) / _
+    rw [mul_add, add_right_comm, Real.cos_add_int_mul_two_pi]
+  · simp only [Fin.isValue, neg_mul, MeasurableEquiv.coe_addRight, Prod.fst_add, ← sub_eq_add_neg,
+      Prod.snd_add, add_zero, cos_sub_two_pi]
+    congrm ∫ p in _, (1 - ?_) / _
+    rw [mul_sub, ← add_sub_right_comm, Real.cos_sub_int_mul_two_pi]
+
+def diamondRotate : (ℝ × ℝ) →L[ℝ] (ℝ × ℝ) where
+  toFun p := (p.1 + p.2, p.1 - p.2)
+  map_add' a b := by ext <;> simp <;> ring
+  map_smul' c a := by ext <;> simp <;> ring
+
+theorem det_diamondRotate : diamondRotate.det = -2 := by
+  rw [ContinuousLinearMap.det, ← LinearMap.det_toMatrix (Module.Basis.finTwoProd ℝ)]
+  suffices Matrix.det !![(1 : ℝ), 1; 1, -1] = -2 by
+    convert this
+    ext i j
+    fin_cases i <;> fin_cases j <;> simp [diamondRotate, LinearMap.toMatrix_apply]
+  simp
+  norm_num
+
+theorem diamondRotate_injective : Function.Injective diamondRotate := by
+  change Function.Injective diamondRotate.toLinearMap
+  rw [← LinearMap.ker_eq_bot, ← LinearMap.det_eq_zero_iff_ker_ne_bot.ne_left,
+    ← ContinuousLinearMap.det, det_diamondRotate]
+  simp
+
+theorem diamond_eq_map : diamond = diamondRotate '' (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) := by
+  ext p
+  simp only [diamond, neg_mul, tsub_le_iff_right, neg_le_sub_iff_le_add, Set.mem_setOf_eq,
+    diamondRotate, ContinuousLinearMap.coe_mk', LinearMap.coe_mk, AddHom.coe_mk, Set.Icc_prod_Icc,
+    Set.mem_image, Set.mem_Icc, Prod.exists, Prod.mk_le_mk]
+  constructor
+  · intro hp
+    use (p.1 + p.2) / 2, (p.1 - p.2) / 2
+    grind
+  · intro hp
+    grind
+
+theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
+    ∫ (x : ℝ) in Set.Icc (-π) π, (2 - 2 * a * cos x)⁻¹ = π / sqrt (1 - a ^ 2) := by
+
+  sorry
+
+theorem sum_sin (n : ℕ) (x : ℝ) :
+    ∑ k ∈ Finset.range n, sin ((2 * k + 1) * x) = (1 - cos (n * (2 * x))) / (2 * sin x) := sorry
+
+
+theorem φ_2d_diagonal (n : ℕ) : φ (![n, n]) = π⁻¹ * ∑ k ∈ Finset.range n, (2 * k + 1 : ℝ)⁻¹ := by
+  rw [φ_2d_diamond]
+  obtain hintegrable := φ_integrable_diamond ![n, n]
+  rw [diamond_eq_map] at ⊢ hintegrable
+  rw [integral_image_eq_integral_abs_det_fderiv_smul volume
+    (by measurability) (fun _ _ ↦ diamondRotate.hasFDerivWithinAt) diamondRotate_injective.injOn _]
+  rw [integrableOn_image_iff_integrableOn_abs_det_fderiv_smul volume
+    (by measurability) (fun _ _ ↦ diamondRotate.hasFDerivWithinAt) diamondRotate_injective.injOn _]
+    at hintegrable
+  rw [Measure.volume_eq_prod, MeasureTheory.setIntegral_prod _ hintegrable]
+  rw [det_diamondRotate, abs_neg, abs_of_nonneg (by simp)]
+  suffices (8 * π ^ 2)⁻¹ * ∫ (x) (y) in Set.Icc (-π) π,
+      2 * ((1 - cos (n * (2 * x))) / (4 - 2 * (2 * cos x * cos y))) =
+      π⁻¹ * ∑ k ∈ Finset.range n, (2 * k + 1 : ℝ)⁻¹ by
+    simpa [diamondRotate, ← mul_add, cos_add_cos, ← two_mul]
+  simp_rw [mul_comm (2 : ℝ), div_mul, sub_div (4 : ℝ),
+    mul_div_cancel_right₀ _ (show (2 : ℝ) ≠ 0 by simp), show (4 / 2 : ℝ) = 2 by norm_num,
+    div_eq_mul_inv, integral_const_mul, mul_comm _ (2 : ℝ)]
+  suffices (8 * π ^ 2)⁻¹ *
+      ∫ (x : ℝ) in Set.Icc (-π) π, (1 - cos (↑n * (2 * |x|))) * ((2 * π) / (2 * sin |x|)) =
+      π⁻¹ * ∑ k ∈ Finset.range n, (2 * k + 1 : ℝ)⁻¹ by
+    convert this using 2
+    apply setIntegral_congr_ae measurableSet_Icc
+    filter_upwards [Measure.ae_ne _ (-π), Measure.ae_ne _ π, Measure.ae_ne _ 0] with x h0 h1 h2 hx
+    congrm (1 - ?_) * ?_
+    · rw [← cos_abs, abs_mul, abs_mul, abs_of_nonneg (Nat.cast_nonneg _),
+        abs_of_nonneg (Nat.ofNat_nonneg _)]
+    · rw [mul_div_mul_left _ _ (by simp)]
+      rw [integral_sub_cos_inv ?_ ?_, ← abs_sin_eq_sqrt_one_sub_cos_sq,
+        Real.abs_sin_eq_sin_abs_of_abs_le_pi (abs_le.mpr hx)]
+      · apply lt_of_le_of_ne' (neg_one_le_cos _)
+        rw [ne_eq, cos_eq_neg_one_iff]
+        by_contra h
+        obtain ⟨k, rfl⟩ := h
+        simp only [Set.mem_Icc, add_le_iff_nonpos_right] at hx
+        obtain ⟨hx1, hx2⟩ := hx
+        rw [← sub_le_iff_le_add', ← neg_add', ← two_mul, neg_eq_neg_one_mul,
+          mul_le_mul_iff_of_pos_right (by positivity)] at hx1
+        rw [← le_div_iff₀ (by positivity), zero_div] at hx2
+        have hx1 : -1 ≤ k := by exact_mod_cast hx1
+        have hx2 : k ≤ 0 := by exact_mod_cast hx2
+        interval_cases k
+        · ring_nf at h0
+          simp at h0
+        · simp at h1
+      · apply lt_of_le_of_ne (cos_le_one _)
+        rw [ne_eq, cos_eq_one_iff_of_lt_of_lt
+          (lt_of_lt_of_le (by simp [two_mul, pi_pos]) hx.1)
+          (lt_of_le_of_lt hx.2 (by simp [two_mul, pi_pos]))]
+        exact h2
+  simp_rw [← mul_div_assoc, mul_div_right_comm, integral_mul_const, ← sum_sin]
+  rw [integral_finsetSum _ (fun k _ ↦ ContinuousOn.integrableOn_Icc (by fun_prop))]
+  rw [Finset.mul_sum, Finset.sum_mul, Finset.mul_sum]
+  congr with k
+  rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le (by simp [pi_nonneg])]
+  rw [← intervalIntegral.integral_add_adjacent_intervals (b := 0)
+    (Continuous.intervalIntegrable (by fun_prop) _ _)
+    (Continuous.intervalIntegrable (by fun_prop) _ _)]
+  conv in ∫ (x : ℝ) in -π..0, _ =>
+    rw [show (0 : ℝ) = -0 by simp]
+  rw [← intervalIntegral.integral_comp_neg]
+  simp_rw [abs_neg]
+  rw [← two_mul]
+  have : ∫ (x : ℝ) in 0..π, sin ((2 * ↑k + 1) * |x|) =
+      ∫ (x : ℝ) in 0..π, sin ((2 * ↑k + 1) * x) := by
+    apply intervalIntegral.integral_congr
+    intro x hx
+    rw [Set.uIcc_of_lt pi_pos] at hx
+    simp only
+    rw [abs_of_nonneg hx.1]
+  rw [this]
+  rw [intervalIntegral.integral_comp_mul_left sin (by positivity)]
+  rw [integral_sin, mul_zero, cos_zero, add_one_mul, mul_comm (2 : ℝ) k, mul_assoc (k : ℝ) 2,
+    Real.cos_nat_mul_two_pi_add_pi, smul_eq_mul]
+  field
