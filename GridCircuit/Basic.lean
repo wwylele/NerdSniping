@@ -501,7 +501,6 @@ theorem φ_2d :
     norm_num
   · norm_num
 
-
 theorem eq_zero_of_φ_2d_deno_le_zero
     {p : ℝ × ℝ} (hp : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π)
     (h : 4 - (2 * cos p.1 + 2 * cos p.2) ≤ 0) : p = 0 := by
@@ -520,15 +519,6 @@ theorem eq_zero_of_φ_2d_deno_le_zero
   ext
   · exact h1
   · exact h2
-
-theorem two_mul_one_sub_cos_le (x : ℝ) : 2 * (1 - cos x) ≤ x ^ 2 := by
-  grw [← one_sub_sq_div_two_le_cos]
-  apply le_of_eq
-  ring
-
-theorem one_sub_cos_le (x : ℝ) : (1 - cos x) ≤ x ^ 2 / 2 := by
-  grw [← two_mul_one_sub_cos_le]
-  simp
 
 theorem φ_integrable_2d (x : Fin 2 → ℤ) :
     IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
@@ -666,134 +656,6 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
     rw [sub_le_comm]
     norm_num
     apply neg_one_le_cos
-
--- Aristotle
-theorem cofinite_int_le_cobounded_real :
-    Filter.map (fun (x : Fin 2 → ℤ) ↦ ((x 0 : ℝ), (x 1 : ℝ))) cofinite ≤
-    Bornology.cobounded (ℝ × ℝ) := by
-  refine Filter.map_le_iff_le_comap.mpr ?_;
-  have h_preimage_finite : ∀ (S : Set (ℝ × ℝ)),
-      Bornology.IsBounded S → Set.Finite {x : Fin 2 → ℤ | ((x 0 : ℝ), (x 1 : ℝ)) ∈ S} := by
-    intro S hS;
-    -- Since S is bounded, there exists some R such that for all (x, y) in S, x^2 + y^2 ≤ R^2.
-    obtain ⟨R, hR⟩ : ∃ R : ℝ, ∀ p ∈ S, p.1^2 + p.2^2 ≤ R^2 := by
-      obtain ⟨ R, hR ⟩ := hS.exists_pos_norm_le;
-      norm_num [ Prod.norm_def ] at hR;
-      exact ⟨ R + R, fun p hp =>
-        by nlinarith [ abs_le.mp ( hR.2 _ _ hp |>.1 ), abs_le.mp ( hR.2 _ _ hp |>.2 ) ] ⟩;
-    refine Set.Finite.subset ( Set.finite_Icc ( -⌈R^2⌉₊ : Fin 2 → ℤ ) ⌈R^2⌉₊ ) ?_;
-    intro x hx
-    constructor <;> intro i <;> fin_cases i <;> norm_num <;>
-      exact Int.le_of_lt_add_one <|
-      by { rw [ ← @Int.cast_lt ℝ ] ; push_cast ; nlinarith [ Nat.le_ceil ( R ^ 2 ), hR _ hx ] } ;
-  intro s hs
-  simp only [mem_cofinite]
-  obtain ⟨ t, ht, hts ⟩ := hs
-  specialize h_preimage_finite tᶜ
-  simp only [Bornology.isBounded_compl_iff, Fin.isValue, Set.mem_compl_iff] at h_preimage_finite
-  exact Set.Finite.subset ( h_preimage_finite ht ) fun x hx => by contrapose! hx; aesop;
-
--- Aristotle
-theorem map_polarCoord_eq_cobounded :
-    Filter.map (polarCoord.symm) (atTop ×ˢ 𝓟 (Set.Icc (-π) π)) = Bornology.cobounded (ℝ × ℝ) := by
-  refine le_antisymm ?_ ?_
-  · intro T hT;
-    obtain ⟨R, hR⟩ : ∃ R > 0, ∀ p : ℝ × ℝ, p.1^2 + p.2^2 ≥ R^2 → p ∈ T := by
-      have h_cobounded : ∃ R > 0, ∀ p : ℝ × ℝ, p.1^2 + p.2^2 ≥ R^2 → p ∈ T := by
-        have h_compl_bounded : Bornology.IsBounded (Tᶜ) :=
-          Bornology.isBounded_compl_iff.mpr hT
-        obtain ⟨ R, hR ⟩ := h_compl_bounded.exists_pos_norm_le;
-        norm_num [ Prod.norm_def ] at hR;
-        exact ⟨ R * 2, mul_pos hR.1 zero_lt_two,
-          fun p hp => Classical.not_not.1 fun h => by
-            nlinarith [ abs_le.mp ( hR.2 _ _ h |>.1 ), abs_le.mp ( hR.2 _ _ h |>.2 ) ] ⟩;
-      exact h_cobounded;
-    refine Filter.mem_prod_iff.mpr ⟨ Set.Ici R, Filter.mem_atTop_sets.mpr ⟨ R, fun x hx => hx ⟩,
-      Set.Icc ( -Real.pi ) Real.pi, Filter.mem_principal_self _, ?_ ⟩;
-    rintro ⟨ r, θ ⟩ ⟨ hr, hθ ⟩ ;
-    exact hR.2 _ ( by simpa [ mul_pow, Real.cos_sq' ] using by nlinarith [ Set.mem_Ici.mp hr ] )
-  · refine fun s hs ↦ ?_;
-    obtain ⟨R, hR⟩ : ∃ R > 0, ∀ r ≥ R, ∀ θ ∈ Set.Icc (-Real.pi) Real.pi,
-        (r * Real.cos θ, r * Real.sin θ) ∈ s := by
-      rw [ Filter.mem_map, Filter.mem_prod_iff ] at hs;
-      norm_num +zetaDelta at *;
-      obtain ⟨ t₁, ⟨ a, ha ⟩, t₂, ht₂, h ⟩ := hs;
-      exact ⟨ Max.max a 1, by positivity,
-        fun r hr θ hθ₁ hθ₂ =>
-        h ( Set.mk_mem_prod ( ha r ( le_trans ( le_max_left _ _ ) hr ) ) ( ht₂ ⟨ hθ₁, hθ₂ ⟩ ) ) ⟩
-    have h_cobounded : ∀ p : ℝ × ℝ, Real.sqrt (p.1^2 + p.2^2) ≥ R → p ∈ s := by
-      intro p hp;
-      specialize hR;
-      have := hR.2 ( Real.sqrt ( p.1 ^ 2 + p.2 ^ 2 ) ) hp
-        ( Complex.arg ( p.1 + p.2 * Complex.I ) ) ?_
-      · simp_all only [mem_map, gt_iff_lt, ge_iff_le, Set.mem_Icc, and_imp, Complex.sin_arg,
-          Complex.add_im, Complex.ofReal_im, Complex.mul_im, Complex.ofReal_re, Complex.I_im,
-          mul_one, Complex.I_re, mul_zero, add_zero, zero_add]
-        by_cases h : p.1 + p.2 * Complex.I = 0
-        · simp_all [ Complex.ext_iff ]
-          linarith;
-        · simp_all [Complex.cos_arg, Complex.normSq, Complex.norm_def, sq ]
-          grind;
-      · exact ⟨ Complex.neg_pi_lt_arg _ |> le_of_lt, Complex.arg_le_pi _ ⟩;
-    refine Filter.mem_of_superset ?_ ?_ (x := { p : ℝ × ℝ | Real.sqrt ( p.1 ^ 2 + p.2 ^ 2 ) ≥ R })
-    · rw [ Metric.cobounded_eq_cocompact ];
-      rw [ Filter.mem_cocompact ];
-      refine ⟨ Metric.closedBall ( 0 : ℝ × ℝ ) R,
-        ProperSpace.isCompact_closedBall _ _, fun p hp => ?_ ⟩ ;
-      simp_all only [mem_map, gt_iff_lt, ge_iff_le, Set.mem_Icc, and_imp, Prod.forall,
-        Set.mem_compl_iff, Metric.mem_closedBall, dist_zero_right, not_le, Set.mem_setOf_eq]
-      exact le_trans hp.le ( max_le_iff.mpr ⟨
-        Real.abs_le_sqrt <| by nlinarith, Real.abs_le_sqrt <| by nlinarith ⟩ );
-    · grind
-
-theorem one_isLittleO_log :
-    (1 : (Fin 2 → ℤ) → ℝ) =o[cofinite] fun (x : Fin 2 → ℤ) ↦ log ((x 0) ^ 2 + (x 1) ^ 2) := by
-  rw [isLittleO_iff]
-  intro c hc
-  suffices {x : Fin 2 → ℤ | c * |log (x 0 ^ 2 + x 1 ^ 2)| < 1}.Finite by simpa
-  conv in fun x ↦ _ =>
-    ext x
-    rw [abs_of_nonneg (by
-      norm_cast
-      apply Real.log_intCast_nonneg
-    )]
-  suffices ({x : ℤ | c * log (x ^ 2) < 1}).Finite by
-    have : ((Set.univ : Set (Fin 2)).pi fun _ ↦ {x : ℤ | c * log (x ^ 2) < 1}).Finite :=
-      Set.Finite.pi fun _ ↦ this
-    apply this.subset
-    suffices (∀ (x : Fin 2 → ℤ), c * log (x 0 ^ 2 + x 1 ^ 2) < 1 → c * (log (x 0 ^ 2)) < 1) ∧
-        ∀ (x : Fin 2 → ℤ), c * log (x 0 ^ 2 + x 1 ^ 2) < 1 → c * log (x 1 ^ 2) < 1 by
-      simpa [Set.subset_pi_iff]
-    constructor
-    <;> intro x hx
-    <;> refine lt_of_le_of_lt ?_ hx
-    <;> refine mul_le_mul_of_nonneg_left ?_ hc.le
-    · by_cases h0 : x 0 = 0
-      · simpa [h0] using Real.log_intCast_nonneg (x 1)
-      exact Real.log_le_log (by simpa [sq_pos_iff] using h0) (by simpa using sq_nonneg _)
-    · by_cases h0 : x 1 = 0
-      · simpa [h0] using Real.log_intCast_nonneg (x 0)
-      exact Real.log_le_log (by simpa [sq_pos_iff] using h0) (by simpa using sq_nonneg _)
-  simp only [log_pow, Nat.cast_ofNat, ← mul_assoc]
-  apply (Set.finite_Icc (-⌈exp (c * 2)⁻¹⌉) (⌈exp (c * 2)⁻¹⌉)).subset
-  intro x hx
-  rw [Set.mem_setOf_eq, ← lt_inv_mul_iff₀ (mul_pos hc (by simp)), mul_one] at hx
-  rcases lt_trichotomy x 0 with hx0 | hx0 | hx0
-  · set y := -x
-    obtain hy : x = -y := by simp [y]
-    rw [hy] at ⊢ hx0 hx
-    rw [Int.cast_neg, log_neg_eq_log] at hx
-    rw [log_lt_iff_lt_exp (by simpa using hx0)] at hx
-    constructor
-    · rw [neg_le_neg_iff, Int.le_ceil_iff]
-      apply lt_trans (by simp) hx
-    · exact le_trans hx0.le (by simp [Int.ceil_nonneg, exp_nonneg])
-  · simp [hx0, Int.ceil_nonneg, exp_nonneg]
-  · rw [log_lt_iff_lt_exp (by simpa using hx0)] at hx
-    constructor
-    · exact le_trans (by simp [Int.ceil_nonneg, exp_nonneg]) hx0.le
-    · rw [Int.le_ceil_iff]
-      apply lt_trans (by simp) hx
 
 theorem integrable_bessel (x1 x2 : ℝ) :
     IntegrableOn (fun p ↦ (1 - cos (x1 * p.1 * cos (p.2 - x2))) / p.1)
