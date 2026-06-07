@@ -1069,14 +1069,108 @@ theorem φ_equiv_log_2d :
   apply IsBigO.const_mul_left
   exact asymptotic_bessel.comp_fst _
 
-theorem bound_φ_2d (a b : Fin 2 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - b)| ≤ c := by
-  have h := φ_equiv_log_2d
-  rw [isBigO_iff] at h
-  obtain ⟨c, h⟩ := h
-  simp only [eventually_cofinite, Fin.isValue, Pi.sub_apply, norm_eq_abs, Pi.one_apply, norm_one,
-    mul_one, not_le] at h
+-- Should Fix Asymptotics.isBigO_one_nat_atTop_iff
+theorem bounded_of_isBigO_cofinite {α : Type*} {f : α → ℝ} (hf : f =O[cofinite] (1 : α → ℝ)) :
+    ∃ c : ℝ, ∀ x, |f x| ≤ c := by
+  rw [isBigO_cofinite_iff (by simp)] at hf
+  simpa using hf
 
-  sorry
+theorem φ_2d_sub_log_bounded :
+    ∃ c : ℝ, ∀ x : Fin 2 → ℤ, |φ x - (4 * π)⁻¹ * log (x 0 ^ 2 + x 1 ^ 2)| ≤ c :=
+  bounded_of_isBigO_cofinite φ_equiv_log_2d
+
+theorem log_shift_equiv (a b : ℤ) :
+    (fun x ↦ log ((x 0 + a) ^ 2 + (x 1 + b) ^ 2) - log (x 0 ^ 2 + x 1 ^ 2)) =O[cofinite]
+    (1 : (Fin 2 → ℤ) → ℝ) := by
+  rw [isBigO_iff]
+  use 3 * (a ^ 2 + b ^ 2)
+  rw [eventually_cofinite]
+  apply (show Set.Finite ({0, -![a, b]} : Set (Fin 2 → ℤ)) by simp).subset
+  intro x
+  contrapose
+  intro h
+  suffices |log ((x 0 + a) ^ 2 + (x 1 + b) ^ 2) - log (x 0 ^ 2 + x 1 ^ 2)| ≤
+      3 * (a ^ 2 + b ^ 2) by
+    simpa
+  wlog h0 : 0 ≤ log ((x 0 + a) ^ 2 + (x 1 + b) ^ 2) - log (x 0 ^ 2 + x 1 ^ 2)
+  · have h' : -x -![a, b] ∉ ({0, -![a, b]} : Set (Fin 2 → ℤ)) := by grind
+    convert this a b h' ?_ using 1
+    · rw [abs_sub_comm]
+      simp
+      ring_nf
+    · rw [not_le, sub_neg] at h0
+      rw [sub_nonneg]
+      convert h0.le using 1
+      · simp
+        ring_nf
+      · simp
+  rw [abs_of_nonneg h0]
+  have habsq : (x 0 + a : ℝ) ^ 2 + (x 1 + b : ℝ) ^ 2 ≠ 0 := by
+    contrapose! h
+    rw [add_eq_zero_iff_of_nonneg (sq_nonneg _) (sq_nonneg _), sq_eq_zero_iff, sq_eq_zero_iff] at h
+    norm_cast at h
+    suffices x = ![-a, -b] by simp [this]
+    ext i
+    fin_cases i
+    · simp
+      linear_combination h.1
+    · simp
+      linear_combination h.2
+  have hsq : (x 0 : ℝ) ^ 2 + (x 1 : ℝ) ^ 2 ≠ 0 := by
+    contrapose! h
+    rw [add_eq_zero_iff_of_nonneg (sq_nonneg _) (sq_nonneg _), sq_eq_zero_iff, sq_eq_zero_iff] at h
+    norm_cast at h
+    suffices x = ![0, 0] by simp [this]
+    ext i
+    fin_cases i
+    · simpa using h.1
+    · simpa using h.2
+  have hsq' : 0 < (x 0 : ℝ) ^ 2 + (x 1 : ℝ) ^ 2 := by positivity
+  rw [← log_div habsq hsq]
+  apply (log_le_sub_one_of_pos (div_pos (by positivity) hsq')).trans
+  rw [show ((x 0 + a) ^ 2 + (x 1 + b) ^ 2 : ℝ) =
+    x 0 ^ 2 + x 1 ^ 2 + (a ^ 2 + b ^ 2 + (2 * (a * x 0) + 2 * (b * x 1))) by ring]
+  rw [← one_add_div hsq]
+  rw [add_sub_cancel_left]
+  rw [div_le_iff₀ hsq']
+  rw [show (3 * (a ^ 2 + b ^ 2) * (x 0 ^ 2 + x 1 ^ 2) : ℝ) =
+    (a ^ 2 + b ^ 2) * (x 0 ^ 2 + x 1 ^ 2) +
+    (2 * (((a * x 0) ^ 2 + (b * x 0) ^ 2)) + 2 * ((a * x 1) ^ 2 + (b * x 1) ^ 2)) by ring]
+  apply add_le_add
+  · apply le_mul_of_one_le_right (add_nonneg (sq_nonneg _) (sq_nonneg _))
+    norm_cast
+    rw [← Int.sub_one_lt_iff, sub_self]
+    exact_mod_cast hsq'
+  · apply add_le_add
+    · refine mul_le_mul_of_nonneg_left ?_ (by simp)
+      apply le_add_of_le_of_nonneg (by exact_mod_cast Int.le_self_sq _) (sq_nonneg _)
+    · refine mul_le_mul_of_nonneg_left ?_ (by simp)
+      apply le_add_of_nonneg_of_le (sq_nonneg _) (by exact_mod_cast Int.le_self_sq _)
+
+theorem log_shift_equiv' (a b c d : ℤ) :
+    (fun x ↦ log ((x 0 - a) ^ 2 + (x 1 - b) ^ 2) - log ((x 0 - c) ^ 2 + (x 1 - d) ^ 2))
+    =O[cofinite] (1 : (Fin 2 → ℤ) → ℝ) := by
+  convert (log_shift_equiv (-a) (-b)).sub (log_shift_equiv (-c) (-d)) using 2 with x
+  push_cast
+  simp [← sub_eq_add_neg]
+
+theorem bound_φ_2d (a b : Fin 2 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - b)| ≤ c := by
+  obtain ⟨c, h⟩ := φ_2d_sub_log_bounded
+  obtain ⟨d, h'⟩ := bounded_of_isBigO_cofinite (log_shift_equiv' (a 0) (a 1) (b 0) (b 1))
+  use c + ((4 * π)⁻¹ * d + c)
+  intro x
+  apply (abs_sub_le _ ((4 * π)⁻¹ * log ((x - a) 0 ^ 2 + (x - a) 1 ^ 2)) _).trans
+  apply add_le_add (h _)
+  apply (abs_sub_le _ ((4 * π)⁻¹ * log ((x - b) 0 ^ 2 + (x - b) 1 ^ 2)) _).trans
+  conv_lhs =>
+    right
+    rw [abs_sub_comm]
+  refine add_le_add ?_ (h _)
+  rw [← mul_sub, abs_mul, abs_of_nonneg (by simp [pi_nonneg])]
+  refine mul_le_mul_of_nonneg_left ?_ (by simp [pi_nonneg])
+  simp_rw [Pi.sub_apply]
+  push_cast
+  exact h' x
 
 theorem bddAbove_φ (hn : 3 ≤ n) : BddAbove (Set.range <| φ (n := n)) := by
   obtain habs := abs_φ_le hn
