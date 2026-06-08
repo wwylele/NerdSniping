@@ -485,7 +485,7 @@ theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
   apply le_of_eq
   ring
 
-theorem φ_2d (x : Fin 2 → ℤ):
+theorem φ_2d (x : Fin 2 → ℤ) :
     φ x = (4 * π ^ 2)⁻¹ * ∫ w in Set.Icc (-π) π ×ˢ Set.Icc (-π) π,
     (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)) := by
   unfold φ
@@ -1715,13 +1715,168 @@ theorem diamond_eq_map : diamond = diamondRotate '' (Set.Icc (-π) π ×ˢ Set.I
     grind
 
 theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
-    ∫ (x : ℝ) in Set.Icc (-π) π, (2 - 2 * a * cos x)⁻¹ = π / sqrt (1 - a ^ 2) := by
-
-  sorry
+    ∫ (x : ℝ) in Set.Icc (-π) π, (2 - 2 * a * cos x)⁻¹ = π / √(1 - a ^ 2) := by
+  have h1a : 1 + a ≠ 0 := by grind
+  have hlt1a : 0 < 1 + a := by grind
+  have h1a' : 1 - a ≠ 0 := by grind
+  rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le (by simp [pi_nonneg])]
+  have hcont : Continuous (fun x ↦ (2 - 2 * a * cos x)⁻¹) :=
+      Continuous.inv₀ (by fun_prop) (fun x ↦ by
+      apply ne_of_gt
+      rw [sub_pos, mul_assoc]
+      simp only [Nat.ofNat_pos, mul_lt_iff_lt_one_right]
+      apply (abs_lt.mp ?_).2
+      rw [abs_mul]
+      apply mul_lt_one_of_nonneg_of_lt_one_left (abs_nonneg a)
+        (abs_lt.mpr ⟨h1, h2⟩) (abs_cos_le_one _)
+    )
+  rw [← intervalIntegral.integral_add_adjacent_intervals (b := 0)
+    (hcont.intervalIntegrable _ _) (hcont.intervalIntegrable _ _)]
+  conv in ∫ (x : ℝ) in -π..0, _ =>
+    rw [show (0 : ℝ) = -0 by simp]
+  rw [← intervalIntegral.integral_comp_neg]
+  simp_rw [cos_neg]
+  rw [← two_mul]
+  rw [← intervalIntegral.integral_const_mul]
+  simp_rw [mul_assoc, ← mul_one_sub, ← div_eq_mul_inv,
+    div_mul_cancel_left₀ (show (2 : ℝ) ≠ 0 by simp)]
+  rw [intervalIntegral.integral_of_le pi_nonneg]
+  rw [integral_Ioc_eq_integral_Ioo]
+  have hintegrable : IntegrableOn (fun x ↦ (1 - a * cos x)⁻¹) (Set.Ioo 0 π) :=
+    (Continuous.integrableOn_Ioc <| Continuous.inv₀ (by fun_prop) (fun x ↦ by
+      apply ne_of_gt
+      rw [sub_pos]
+      apply (abs_lt.mp ?_).2
+      rw [abs_mul]
+      apply mul_lt_one_of_nonneg_of_lt_one_left (abs_nonneg a)
+        (abs_lt.mpr ⟨h1, h2⟩) (abs_cos_le_one _)
+    )).mono_set (Set.Ioo_subset_Ioc_self)
+  let g (t : ℝ) := 2 / (1 + a) / ((1 - a) / (1 + a) + t ^ 2)
+  let f (x : ℝ) := tan (x / 2)
+  let f' (x : ℝ) := 1 / (1 + cos x)
+  have hfs : f '' Set.Ioo 0 π = Set.Ioi 0 := by
+    ext x
+    simp only [Set.mem_image, Set.mem_Ioo, Set.mem_Ioi, f]
+    constructor
+    · rintro ⟨y, h, rfl⟩
+      apply tan_pos_of_pos_of_lt_pi_div_two (by simpa using h.1)
+      exact div_lt_div_of_pos_right h.2 (by simp)
+    · intro h
+      use arctan x * 2
+      suffices arctan x * 2 < π by simpa [h]
+      rw [← lt_div_iff₀ (by simp)]
+      exact arctan_lt_pi_div_two x
+  have heq ⦃x : ℝ⦄ (hx : x ∈ Set.Ioo 0 π) : (1 - a * cos x)⁻¹ = |f' x| • g (f x) := by
+    rw [smul_eq_mul]
+    have hcos: cos x ≠ -1 := by
+      rw [ne_eq, cos_eq_neg_one_iff]
+      contrapose hx
+      obtain ⟨k, rfl⟩ := hx
+      simp only [Set.mem_Ioo, add_lt_iff_neg_left, not_and, not_lt]
+      intro h
+      rw [← neg_lt_iff_pos_add', neg_eq_neg_one_mul, ← mul_assoc,
+        mul_lt_mul_iff_of_pos_right pi_pos, ← div_lt_iff₀ (by simp)] at h
+      have h1k : (-1 : ℝ) < k := lt_trans (by norm_num) h
+      have h1k : -1 < k := by exact_mod_cast h1k
+      have h0k : 0 ≤ k := by simpa using Int.le_of_sub_one_lt h1k
+      exact mul_nonneg (by simpa using h0k) (by simp [pi_nonneg])
+    unfold f'
+    rw [abs_of_nonneg (div_nonneg (by simp) (by grw [← neg_one_le_cos]; simp))]
+    unfold g f
+    rw [Real.cos_eq_two_mul_tan_half_div_one_sub_tan_half_sq _ hcos]
+    rw [div_add' _ _ _ h1a, div_div_div_cancel_right₀ h1a]
+    rw [one_add_div (by positivity), add_add_sub_cancel]
+    rw [← mul_div_mul_comm, one_mul, one_add_one_eq_two]
+    field
+  rw [setIntegral_congr_fun measurableSet_Ioo heq]
+  replace hintegrable := hintegrable.congr_fun heq measurableSet_Ioo
+  have hderiv : ∀ x ∈ Set.Ioo 0 π, HasDerivWithinAt f (f' x) (Set.Ioo 0 π) x := by
+    intro x hx
+    unfold f f'
+    apply HasDerivAt.hasDerivWithinAt
+    have hcos : cos (x / 2) ≠ 0 := by
+      rw [cos_ne_zero_iff]
+      intro k h
+      have h : x = (2 * k + 1 : ℤ) * π := by simpa using h
+      rw [h, Set.mem_Ioo, mul_lt_iff_lt_one_left pi_pos, mul_pos_iff_of_pos_right pi_pos] at hx
+      norm_cast at hx
+      grind
+    obtain h := (Real.hasDerivAt_tan (by exact hcos)).comp _ ((hasDerivAt_id x).div_const 2)
+    convert h using 1
+    rw [cos_sq, id]
+    rw [mul_div_cancel₀ _ (by simp)]
+    rw [← mul_div_mul_comm, one_mul, add_mul, div_mul_cancel₀ _ (by simp),
+      div_mul_cancel₀ _ (by simp)]
+  have hinj : Set.InjOn f (Set.Ioo 0 π) := by
+    intro a ha b hb h
+    unfold f at h
+    obtain h := tan_inj_of_lt_of_lt_pi_div_two (by
+      grw [← ha.1]
+      simp [pi_pos]) ((div_lt_div_iff_of_pos_right (by simp)).mpr ha.2) (by
+      grw [← hb.1]
+      simp [pi_pos]) ((div_lt_div_iff_of_pos_right (by simp)).mpr hb.2) h
+    simpa using h
+  rw [← integral_image_eq_integral_abs_deriv_smul measurableSet_Ioo hderiv hinj g, hfs]
+  rw [← integrableOn_image_iff_integrableOn_abs_deriv_smul measurableSet_Ioo hderiv hinj g, hfs]
+    at hintegrable
+  unfold g at ⊢ hintegrable
+  have hdivpos : 0 < (1 - a) / (1 + a) := by
+    apply div_pos
+    · simpa using h2
+    · exact hlt1a
+  rw [show (1 - a) / (1 + a) = (√((1 - a) / (1 + a))) ^ 2 by
+    rw [sq_sqrt]
+    exact hdivpos.le] at ⊢ hintegrable
+  rw [show 2 / (1 + a) = 2 / √((1 - a) * (1 + a)) * √((1 - a) / (1 + a)) by
+    rw [div_mul, ← sqrt_div (by
+      apply mul_nonneg
+      · simpa using h2.le
+      · exact hlt1a.le)]
+    rw [← div_mul, mul_div_cancel_left₀ _ h1a', sqrt_mul_self hlt1a.le]] at ⊢ hintegrable
+  simp_rw [mul_div_assoc] at ⊢ hintegrable
+  rw [integral_const_mul]
+  rw [IntegrableOn, integrable_const_mul_iff (by
+    rw [isUnit_iff_ne_zero]
+    apply div_ne_zero (by simp)
+    rw [sqrt_ne_zero']
+    apply mul_pos
+    · simpa using h2
+    · exact hlt1a
+  ), ← IntegrableOn] at hintegrable
+  rw [mul_comm (1 - a), ← sq_sub_sq, one_pow]
+  obtain htendsto := intervalIntegral_tendsto_integral_Ioi 0 hintegrable tendsto_id
+  simp_rw [integral_div_sq_add_sq] at htendsto
+  simp only [id_eq, zero_div, arctan_zero, sub_zero] at htendsto
+  obtain h := Real.tendsto_arctan_atTop.mono_right nhdsWithin_le_nhds
+  have htendsto' : Tendsto (fun i ↦ arctan (i / √((1 - a) / (1 + a)))) atTop (𝓝 (Real.pi / 2)) := by
+    apply (Real.tendsto_arctan_atTop.mono_right nhdsWithin_le_nhds).comp
+    apply tendsto_id.atTop_div_const
+    rw [sqrt_pos]
+    exact hdivpos
+  rw [tendsto_nhds_unique htendsto htendsto']
+  ring
 
 theorem sum_sin (n : ℕ) (x : ℝ) :
-    ∑ k ∈ Finset.range n, sin ((2 * k + 1) * x) = (1 - cos (n * (2 * x))) / (2 * sin x) := sorry
-
+    ∑ k ∈ Finset.range n, sin ((2 * k + 1) * x) = (1 - cos (n * (2 * x))) / (2 * sin x) := by
+  by_cases hx : sin x = 0
+  · suffices ∑ k ∈ Finset.range n, sin ((2 * k + 1) * x) = 0 by simpa [hx]
+    refine Finset.sum_eq_zero fun k _ ↦ ?_
+    rw [sin_eq_zero_iff] at hx ⊢
+    obtain ⟨n, rfl⟩ := hx
+    use (2 * k + 1) * n
+    push_cast
+    ring
+  rw [eq_div_iff (by simpa using hx)]
+  rw [Finset.sum_mul]
+  simp_rw [mul_left_comm _ (2 : ℝ) _, ← mul_assoc, two_mul_sin_mul_sin]
+  simp_rw [show ∀ k : ℕ, cos ((2 * k + 1) * x - x) - cos ((2 * k + 1) * x + x) =
+      -cos ((k + 1 : ℕ) * (2 * x)) - -cos (k * (2 * x)) by
+    intro k
+    push_cast
+    ring_nf]
+  rw [Finset.sum_range_sub (fun k ↦ -cos (k * (2 * x)))]
+  simp only [Nat.cast_zero, zero_mul, cos_zero]
+  ring_nf
 
 theorem φ_2d_diagonal (n : ℕ) : φ (![n, n]) = π⁻¹ * ∑ k ∈ Finset.range n, (2 * k + 1 : ℝ)⁻¹ := by
   rw [φ_2d_diamond]
@@ -1798,3 +1953,39 @@ theorem φ_2d_diagonal (n : ℕ) : φ (![n, n]) = π⁻¹ * ∑ k ∈ Finset.ran
   rw [integral_sin, mul_zero, cos_zero, add_one_mul, mul_comm (2 : ℝ) k, mul_assoc (k : ℝ) 2,
     Real.cos_nat_mul_two_pi_add_pi, smul_eq_mul]
   field
+
+theorem φ_2d_1_0 : φ ![1, 0] = 4⁻¹ := by
+  convert φ_off_center (0 : Fin 2)
+  · ext i; fin_cases i <;> simp
+  · norm_num
+
+theorem φ_2d_1_1 : φ ![1, 1] = π⁻¹ := by
+  simpa using φ_2d_diagonal 1
+
+theorem φ_2d_2_2 : φ ![2, 2] = π⁻¹ * (4 / 3) := by
+  convert φ_2d_diagonal 2 using 1
+  simp [Finset.range]
+  norm_num
+
+theorem φ_2d_3_3 : φ ![3, 3] = π⁻¹ * (23 / 15) := by
+  convert φ_2d_diagonal 3 using 1
+  simp [Finset.range]
+  norm_num
+
+theorem φ_swap (x y : ℤ) : φ ![x, y] = φ ![y, x] := by
+  rw [← φ_perm _ (Equiv.swap 0 1)]
+  simp
+
+theorem φ_2d_2_1 : φ ![2, 1] = π⁻¹ * 2 - 4⁻¹ := by
+  obtain h := φ_kirchhoff ![1, 1]
+  have hsum (f : Fin 2 → ℝ) : ∑ k, f k = f 0 + f 1 := by simp
+  have h0 : Pi.single 0 (1 : ℤ) = ![1, 0] := by ext i; fin_cases i <;> simp
+  have h1 : Pi.single 1 (1 : ℤ) = ![0, 1] := by ext i; fin_cases i <;> simp
+  have h2 : ![1, (1 : ℤ)] - ![1, 0] = ![0, 1] := by ext i; fin_cases i <;> simp
+  have h3 : ![1, (1 : ℤ)] - ![0, 1] = ![1, 0] := by ext i; fin_cases i <;> simp
+  have h4 : ![1, (1 : ℤ)] + ![0, 1] = ![1, 2] := by ext i; fin_cases i <;> simp
+  have h5 : ![1, (1 : ℤ)] + ![1, 0] = ![2, 1] := by ext i; fin_cases i <;> simp
+  simp_rw [hsum, h0, h1, h2, h3, h4, h5, φ_swap 0 1, φ_swap 1 2, φ_2d_1_0, φ_2d_1_1] at h
+  rw [show unitCur 0 ![1, 1] = 0 by simp [unitCur]] at h
+  apply mul_right_cancel₀ (show (2 : ℝ) ≠ 0 by simp)
+  linear_combination h
