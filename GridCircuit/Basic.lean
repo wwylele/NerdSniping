@@ -40,10 +40,10 @@ Once voltage is applied to the two nodes, there are two laws that determine the 
 potential:
 * Ohm's law: $R = V / I$ for any segment of the curcuit. Since every segment between two
   neighboring nodes has a resistance of 1, we can simplify this to $I(p, q) = U(p) - U(q)$ for any
-  pair of neighboring nodes $p$ and $q$, where $u(p)$ is the potential at point $p$, and $I(p, q)$
+  pair of neighboring nodes $p$ and $q$, where $U(p)$ is the potential at point $p$, and $I(p, q)$
   is the current from $p$ to $q$.
-* Kirchhoff's current law: the signed sum of currents at a node is zero. In our $n$-dimension grid,
-  each node has $2n$ currents with neighbors, and possibly one external current input. In our
+* Kirchhoff's current law: the signed sum of currents at a node is zero. In our $n$-dimensional
+  grid, each node has $2n$ currents with neighbors, and possibly one external current input. In our
   convention, the current out from the node is positive, and the current into the node is negative.
 
 We can combine the two laws to form a formula about potentials $U(p)$ and external currents $I(p)$:
@@ -350,8 +350,28 @@ theorem equivResistance_eq [NeZero n] {x : Fin n → ℤ} {pot : (Fin n → ℤ)
   rw [sub_eq_iff_eq_add] at hc
   simp [equivResistance, h', hc]
 
-/-! ## 3. Fourier Transform: a Potential Solution -/
+/-!
 
+## 3. Fourier Transform: a Potential Solution
+
+In this section, we construct a function `φ` that represents the potential function corresponding to
+a *singleton* external current (as opposite to a pair of in/out current as we have been discussing).
+Physically, such current dissipates via the grid to infinity. It is *almost* a valid solution to
+`IsValidCircuit (unitCur 0) φ`, but it is not necessarily bounded. We will further discuss its
+asymptotic behavior in the next section.
+
+The construction of `φ` is obtained by taking an inverse Fourier transform of a certain function.
+The full derivation via Fourier transform is omitted, but you can get the general idea by the proof
+here.
+
+-/
+
+/-- We compute the discrete Fourier transform of `unitCur 0`, then state the result using inverse
+Fourier transform to recover `unitCur 0`, which is a integral over a hypercube
+$$
+unitCur_0 (x_0, x_1,\cdot,x_{n-1}) =
+\frac{1}{(2\pi)^n} \integral_{w\mem [-\pi, \pi]^n \left(\cos \sum_i, x_i w_i \right) dw
+$$ -/
 theorem fourier_unitCur (x : Fin n → ℤ) :
     unitCur 0 x = (2 * π)⁻¹ ^ n *
     ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π), cos (∑ i, x i * w i) := by
@@ -412,9 +432,24 @@ theorem fourier_unitCur (x : Fin n → ℤ) :
     push_cast
     ring
 
+/-- We define function `φ` also as a similar inverse Fourier transform
+$$
+\phi (x_0, x_1,\cdot,x_{n-1}) =
+\frac{1}{(2\pi)^n} \integral_{w\mem [-\pi, \pi]^n
+\frac{1 - \cos \sum_i, x_i w_i}{\sum_i 2 - 2\cos w_i} dw
+$$ -/
 def φ (x : Fin n → ℤ) : ℝ :=
   (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
     (1 - Real.cos (∑ i, x i * w i)) / ∑ i, (2 - 2 * Real.cos (w i))
+
+/-!
+
+We start exploring some basic properties of `φ`:
+- `φ 0 = 0`.
+- `φ` is non-negative, and therefore bounded below.
+- `φ` has mirror symmetry along any axies. (`φ_reflect`)
+- `φ` is symmetric for coordinate permutation. (`φ_perm`)
+-/
 
 @[simp]
 theorem φ_zero : φ (n := n) 0 = 0 := by
@@ -561,6 +596,12 @@ theorem bddBelow_φ : BddBelow (Set.range <| φ (n := n)) := by
   use 0
   simpa [mem_lowerBounds] using φ_nonneg
 
+/-!
+We should justify that the integral in `φ` actually makes sense. This is not trivial: the integrant
+has an unremovable singularity at 0. It turns out that this singularity is bounded, so you can
+either treat it as 0 using Lean's junk value, or remove the singularity from integration on paper.
+-/
+
 theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
     IntegrableOn (fun w ↦ (1 - cos (∑ k, x k * w k)) / ∑ k, (2 - 2 * cos (w k)))
       (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) := by
@@ -597,70 +638,84 @@ theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
   apply le_of_eq
   ring
 
-theorem φ_2d (x : Fin 2 → ℤ) :
-    φ x = (4 * π ^ 2)⁻¹ * ∫ w in Set.Icc (-π) π ×ˢ Set.Icc (-π) π,
-    (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)) := by
+/-!
+Lastly, we show that `φ` satisfies Kirchhoff's law for singleton unit current, making it an *almost*
+solution. As a corollary, we compute the value of `φ eᵢ` for unit vector `eᵢ` in `φ_off_center`
+using Kirchhoff's law and symmetry.
+-/
+
+theorem φ_kirchhoff [NeZero n] (x : Fin n → ℤ) :
+    ∑ k, (φ (x - Pi.single k 1) - φ x) + ∑ k, (φ (x + Pi.single k 1) - φ x) = unitCur 0 x := by
+  rw [← Finset.sum_add_distrib]
+  simp_rw [sub_add_sub_comm, ← two_mul]
   unfold φ
-  rw [Measure.volume_eq_prod, ← Measure.prod_restrict]
-  rw [← (measurePreserving_finTwoArrow _).integral_comp']
-  rw [← Measure.restrict_pi_pi]
-  simp only [mul_inv_rev, Fin.sum_univ_two, Fin.isValue, Finset.sum_sub_distrib, Finset.sum_const,
-    Finset.card_univ, Fintype.card_fin, nsmul_eq_mul, Nat.cast_ofNat, Set.pi_univ_Icc,
-    MeasurableEquiv.finTwoArrow_apply]
-  congr
-  · simp [mul_pow]
-    norm_num
-  · norm_num
-
-theorem eq_zero_of_φ_2d_deno_le_zero
-    {p : ℝ × ℝ} (hp : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π)
-    (h : 4 - (2 * cos p.1 + 2 * cos p.2) ≤ 0) : p = 0 := by
-  rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring] at h
-  have h := le_antisymm h (add_nonneg (by simpa using cos_le_one _) (by simpa using cos_le_one _))
-  rw [(add_eq_zero_iff_of_nonneg (by simpa using cos_le_one _)
-    (by simpa using cos_le_one _))] at h
-  simp only [mul_eq_zero, OfNat.ofNat_ne_zero, sub_eq_zero, false_or] at h
-  have h1 := h.1.symm
-  have h2 := h.2.symm
-  rw [Set.mem_prod] at hp
-  rw [Real.cos_eq_one_iff_of_lt_of_lt (lt_of_lt_of_le (by simp [pi_pos]) hp.1.1)
-    (lt_of_le_of_lt hp.1.2 (by simp [pi_pos]))] at h1
-  rw [Real.cos_eq_one_iff_of_lt_of_lt (lt_of_lt_of_le (by simp [pi_pos]) hp.2.1)
-    (lt_of_le_of_lt hp.2.2 (by simp [pi_pos]))] at h2
-  ext
-  · exact h1
-  · exact h2
-
-theorem φ_integrable_2d (x : Fin 2 → ℤ) :
-    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
-    (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) volume := by
-  rw [Measure.volume_eq_prod, IntegrableOn, ← Measure.prod_restrict]
-  rw [← (measurePreserving_finTwoArrow _).integrable_comp (by
-    apply StronglyMeasurable.aestronglyMeasurable
-    fun_prop
+  conv in ∑ k, _ =>
+    right; ext k
+    rw [← mul_add, mul_left_comm 2, ← mul_sub, ← integral_const_mul]
+    rw [← integral_add (integrable_φ _) (integrable_φ _)]
+    rw [← integral_sub ((integrable_φ _).fun_add (integrable_φ _)) ((integrable_φ _).const_mul _)]
+  rw [← Finset.mul_sum]
+  rw [← integral_finsetSum _ (fun k _ ↦ by
+    apply IntegrableOn.fun_sub
+    · exact (integrable_φ _).fun_add (integrable_φ _)
+    · exact (integrable_φ _).const_mul _
   )]
-  rw [← Measure.restrict_pi_pi, ← IntegrableOn, ← MeasureTheory.volume_pi, Set.pi_univ_Icc]
-  convert! integrable_φ x with x
-  simp [show (2 : ℝ) * 2 = 4 by norm_num]
+  conv in ∫ w in _, _ =>
+    right; ext w
+    conv in ∑ k, _ =>
+      right; ext k
+      rw [← add_div, ← mul_div_assoc, ← sub_div]
+      rw [mul_sub, mul_one]
+      rw [show ∀ x y z : ℝ, 1 - x + (1 - y) - (2 - z) = z - x - y by intro x y z; ring]
+      simp only [Pi.sub_apply, Int.cast_sub, Pi.add_apply, Int.cast_add, sub_mul, add_mul]
+      rw [Finset.sum_sub_distrib, Finset.sum_add_distrib]
+      rw [sub_sub, add_comm, cos_add_cos, add_add_sub_cancel, add_sub_sub_cancel, add_self_div_two,
+        add_self_div_two, mul_comm 2, mul_assoc, ← mul_sub]
+      simp only [Pi.intCast_single, Int.cast_one, ← Pi.single_mul_left_const_apply, one_mul,
+        Pi.single_comm k, Finset.sum_pi_single, Finset.mem_univ, ↓reduceIte]
+      rw [mul_div_assoc]
+    rw [← Finset.mul_sum, ← Finset.sum_div]
+  have hcongr (f : (Fin n → ℝ) → ℝ) :
+      (fun w ↦ f w * ((∑ x, (2 - 2 * cos (w x))) / ∑ x, (2 - 2 * cos (w x))))
+      =ᵐ[volume.restrict (Set.Icc (fun _ ↦ -π) (fun _ ↦ π))] f := by
+    refine EventuallyEq.filter_mono ?_ ae_restrict_le
+    suffices ∀ᵐ w : Fin n → ℝ, ∀ z : Fin n → ℤ, w ≠ fun k ↦ z k * (2 * π) by
+      unfold EventuallyEq
+      filter_upwards [this] with w h
+      rw [div_self ?_, mul_one]
+      contrapose! h
+      rw [Finset.sum_eq_zero_iff_of_nonneg (fun k _ ↦ by simpa using Real.cos_le_one (w k))] at h
+      have h : ∀ (i : Fin n), ∃ n : ℤ, n * (2 * π) = w i := by
+        simpa [sub_eq_zero, Real.cos_eq_one_iff] using h
+      choose z hz using h
+      use z
+      grind
+    rw [eventually_countable_forall]
+    intro z
+    exact Measure.ae_ne volume fun k ↦ z k * (2 * π)
+  rw [integral_congr_ae (hcongr _)]
+  rw [← fourier_unitCur]
 
-theorem φ_integrable_2d' (x : Fin 2 → ℤ) :
-    IntegrableOn (fun w ↦ ((1 - cos (x 0 * w.1 + x 1 * w.2)) / (w.1 ^ 2 + w.2 ^ 2)))
-      (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) volume := by
-  apply Integrable.mono_nonneg (φ_integrable_2d x) ?_ ?_ ?_
-  · apply AEStronglyMeasurable.restrict
-    apply StronglyMeasurable.aestronglyMeasurable
-    fun_prop
-  · refine Eventually.of_forall fun p ↦ div_nonneg ?_ ?_
-    · simpa using cos_le_one _
-    · positivity
-  · refine ae_restrict_of_forall_mem (by measurability) fun p hp ↦ ?_
-    by_cases hp0 : p = 0
-    · simp [hp0]
-    apply div_le_div_of_nonneg_left (by simpa using cos_le_one _)
-    · contrapose! hp0
-      apply eq_zero_of_φ_2d_deno_le_zero hp hp0
-    rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
-    exact add_le_add (two_mul_one_sub_cos_le _) (two_mul_one_sub_cos_le _)
+theorem φ_off_center (e : Fin n) : φ (Pi.single e 1) = (2 * n : ℝ)⁻¹ := by
+  have : NeZero n := e.neZero
+  apply eq_inv_of_mul_eq_one_right
+  simpa [φ_single_perm _ 0, ← two_mul, unitCur, ← mul_assoc] using φ_kirchhoff (n := n) 0
+
+/-!
+
+## 4. Asymptotic Behavior of `φ`
+
+In this section, we show the asymptotic behavior of `φ` in different dimensions $n$:
+- When $n \ge 3$, `φ x` is bounded
+- When $n = 2$, `φ x` grows like $\log \lVert x \rVert$
+- When $n = 1$, `φ x` grows linearly
+
+Compare this to physical intuition: in a $n$-dimensional space, current density should decrease like
+${\lVert x \rVert}^{-(n - 1)}$ (inverse-square law in 3D), and the potential, being the integral of
+it, should grow like ${\lVert x \rVert}^{-(n - 2)}$ except for $n = 2$, where the integral becomes
+$\log \lVert x \rVert$.
+
+-/
 
 theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
     |φ x| ≤ (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
@@ -767,6 +822,71 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
     rw [sub_le_comm]
     norm_num
     apply neg_one_le_cos
+
+theorem φ_2d (x : Fin 2 → ℤ) :
+    φ x = (4 * π ^ 2)⁻¹ * ∫ w in Set.Icc (-π) π ×ˢ Set.Icc (-π) π,
+    (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)) := by
+  unfold φ
+  rw [Measure.volume_eq_prod, ← Measure.prod_restrict]
+  rw [← (measurePreserving_finTwoArrow _).integral_comp']
+  rw [← Measure.restrict_pi_pi]
+  simp only [mul_inv_rev, Fin.sum_univ_two, Fin.isValue, Finset.sum_sub_distrib, Finset.sum_const,
+    Finset.card_univ, Fintype.card_fin, nsmul_eq_mul, Nat.cast_ofNat, Set.pi_univ_Icc,
+    MeasurableEquiv.finTwoArrow_apply]
+  congr
+  · simp [mul_pow]
+    norm_num
+  · norm_num
+
+theorem eq_zero_of_φ_2d_deno_le_zero
+    {p : ℝ × ℝ} (hp : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π)
+    (h : 4 - (2 * cos p.1 + 2 * cos p.2) ≤ 0) : p = 0 := by
+  rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring] at h
+  have h := le_antisymm h (add_nonneg (by simpa using cos_le_one _) (by simpa using cos_le_one _))
+  rw [(add_eq_zero_iff_of_nonneg (by simpa using cos_le_one _)
+    (by simpa using cos_le_one _))] at h
+  simp only [mul_eq_zero, OfNat.ofNat_ne_zero, sub_eq_zero, false_or] at h
+  have h1 := h.1.symm
+  have h2 := h.2.symm
+  rw [Set.mem_prod] at hp
+  rw [Real.cos_eq_one_iff_of_lt_of_lt (lt_of_lt_of_le (by simp [pi_pos]) hp.1.1)
+    (lt_of_le_of_lt hp.1.2 (by simp [pi_pos]))] at h1
+  rw [Real.cos_eq_one_iff_of_lt_of_lt (lt_of_lt_of_le (by simp [pi_pos]) hp.2.1)
+    (lt_of_le_of_lt hp.2.2 (by simp [pi_pos]))] at h2
+  ext
+  · exact h1
+  · exact h2
+
+theorem φ_integrable_2d (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
+    (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) volume := by
+  rw [Measure.volume_eq_prod, IntegrableOn, ← Measure.prod_restrict]
+  rw [← (measurePreserving_finTwoArrow _).integrable_comp (by
+    apply StronglyMeasurable.aestronglyMeasurable
+    fun_prop
+  )]
+  rw [← Measure.restrict_pi_pi, ← IntegrableOn, ← MeasureTheory.volume_pi, Set.pi_univ_Icc]
+  convert! integrable_φ x with x
+  simp [show (2 : ℝ) * 2 = 4 by norm_num]
+
+theorem φ_integrable_2d' (x : Fin 2 → ℤ) :
+    IntegrableOn (fun w ↦ ((1 - cos (x 0 * w.1 + x 1 * w.2)) / (w.1 ^ 2 + w.2 ^ 2)))
+      (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) volume := by
+  apply Integrable.mono_nonneg (φ_integrable_2d x) ?_ ?_ ?_
+  · apply AEStronglyMeasurable.restrict
+    apply StronglyMeasurable.aestronglyMeasurable
+    fun_prop
+  · refine Eventually.of_forall fun p ↦ div_nonneg ?_ ?_
+    · simpa using cos_le_one _
+    · positivity
+  · refine ae_restrict_of_forall_mem (by measurability) fun p hp ↦ ?_
+    by_cases hp0 : p = 0
+    · simp [hp0]
+    apply div_le_div_of_nonneg_left (by simpa using cos_le_one _)
+    · contrapose! hp0
+      apply eq_zero_of_φ_2d_deno_le_zero hp hp0
+    rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
+    exact add_le_add (two_mul_one_sub_cos_le _) (two_mul_one_sub_cos_le _)
 
 theorem integrable_bessel (x1 x2 : ℝ) :
     IntegrableOn (fun p ↦ (1 - cos (x1 * p.1 * cos (p.2 - x2))) / p.1)
@@ -1111,63 +1231,6 @@ theorem bddAbove_φ (hn : 3 ≤ n) : BddAbove (Set.range <| φ (n := n)) := by
     1 / ∑ i, (1 - Real.cos (w i))
   simp_rw [mem_upperBounds, Set.mem_range, forall_exists_index, forall_apply_eq_imp_iff]
   exact fun x ↦ (habs x).2
-
-theorem φ_kirchhoff [NeZero n] (x : Fin n → ℤ) :
-    ∑ k, (φ (x - Pi.single k 1) - φ x) + ∑ k, (φ (x + Pi.single k 1) - φ x) = unitCur 0 x := by
-  rw [← Finset.sum_add_distrib]
-  simp_rw [sub_add_sub_comm, ← two_mul]
-  unfold φ
-  conv in ∑ k, _ =>
-    right; ext k
-    rw [← mul_add, mul_left_comm 2, ← mul_sub, ← integral_const_mul]
-    rw [← integral_add (integrable_φ _) (integrable_φ _)]
-    rw [← integral_sub ((integrable_φ _).fun_add (integrable_φ _)) ((integrable_φ _).const_mul _)]
-  rw [← Finset.mul_sum]
-  rw [← integral_finsetSum _ (fun k _ ↦ by
-    apply IntegrableOn.fun_sub
-    · exact (integrable_φ _).fun_add (integrable_φ _)
-    · exact (integrable_φ _).const_mul _
-  )]
-  conv in ∫ w in _, _ =>
-    right; ext w
-    conv in ∑ k, _ =>
-      right; ext k
-      rw [← add_div, ← mul_div_assoc, ← sub_div]
-      rw [mul_sub, mul_one]
-      rw [show ∀ x y z : ℝ, 1 - x + (1 - y) - (2 - z) = z - x - y by intro x y z; ring]
-      simp only [Pi.sub_apply, Int.cast_sub, Pi.add_apply, Int.cast_add, sub_mul, add_mul]
-      rw [Finset.sum_sub_distrib, Finset.sum_add_distrib]
-      rw [sub_sub, add_comm, cos_add_cos, add_add_sub_cancel, add_sub_sub_cancel, add_self_div_two,
-        add_self_div_two, mul_comm 2, mul_assoc, ← mul_sub]
-      simp only [Pi.intCast_single, Int.cast_one, ← Pi.single_mul_left_const_apply, one_mul,
-        Pi.single_comm k, Finset.sum_pi_single, Finset.mem_univ, ↓reduceIte]
-      rw [mul_div_assoc]
-    rw [← Finset.mul_sum, ← Finset.sum_div]
-  have hcongr (f : (Fin n → ℝ) → ℝ) :
-      (fun w ↦ f w * ((∑ x, (2 - 2 * cos (w x))) / ∑ x, (2 - 2 * cos (w x))))
-      =ᵐ[volume.restrict (Set.Icc (fun _ ↦ -π) (fun _ ↦ π))] f := by
-    refine EventuallyEq.filter_mono ?_ ae_restrict_le
-    suffices ∀ᵐ w : Fin n → ℝ, ∀ z : Fin n → ℤ, w ≠ fun k ↦ z k * (2 * π) by
-      unfold EventuallyEq
-      filter_upwards [this] with w h
-      rw [div_self ?_, mul_one]
-      contrapose! h
-      rw [Finset.sum_eq_zero_iff_of_nonneg (fun k _ ↦ by simpa using Real.cos_le_one (w k))] at h
-      have h : ∀ (i : Fin n), ∃ n : ℤ, n * (2 * π) = w i := by
-        simpa [sub_eq_zero, Real.cos_eq_one_iff] using h
-      choose z hz using h
-      use z
-      grind
-    rw [eventually_countable_forall]
-    intro z
-    exact Measure.ae_ne volume fun k ↦ z k * (2 * π)
-  rw [integral_congr_ae (hcongr _)]
-  rw [← fourier_unitCur]
-
-theorem φ_off_center (e : Fin n) : φ (Pi.single e 1) = (2 * n : ℝ)⁻¹ := by
-  have : NeZero n := e.neZero
-  apply eq_inv_of_mul_eq_one_right
-  simpa [φ_single_perm _ 0, ← two_mul, unitCur, ← mul_assoc] using φ_kirchhoff (n := n) 0
 
 theorem φ_1d_nat (x : ℕ) : φ ![x] = 2⁻¹ * x := by
   induction x using Nat.twoStepInduction with
