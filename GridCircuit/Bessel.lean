@@ -49,7 +49,7 @@ lemma ibp_cos_integral (r a b : ℝ) (hr : 0 < r) (ha : 0 < a) (hab : a < b) (hb
         rotate_right;
         use fun x => -Real.sin ( r * Real.cos x ) / ( r * Real.sin x );
         · ring;
-        · intro x hx; convert HasDerivAt.div ( HasDerivAt.neg ( HasDerivAt.sin ( HasDerivAt.const_mul r ( Real.hasDerivAt_cos x ) ) ) ) ( HasDerivAt.const_mul r ( Real.hasDerivAt_sin x ) ) ( mul_ne_zero hr.ne' ( ne_of_gt ( Real.sin_pos_of_pos_of_lt_pi ( by cases Set.mem_uIcc.mp hx <;> linarith ) ( by cases Set.mem_uIcc.mp hx <;> linarith ) ) ) ) using 1 ; ring;
+        · intro x hx; convert! HasDerivAt.div ( HasDerivAt.neg ( HasDerivAt.sin ( HasDerivAt.const_mul r ( Real.hasDerivAt_cos x ) ) ) ) ( HasDerivAt.const_mul r ( Real.hasDerivAt_sin x ) ) ( mul_ne_zero hr.ne' ( ne_of_gt ( Real.sin_pos_of_pos_of_lt_pi ( by cases Set.mem_uIcc.mp hx <;> linarith ) ( by cases Set.mem_uIcc.mp hx <;> linarith ) ) ) ) using 1 ; ring;
           by_cases h : Real.sin x = 0 <;> simp_all +decide [ sq, mul_assoc, mul_comm r, hr.ne' ] ; ring;
           · exact absurd h ( ne_of_gt ( Real.sin_pos_of_pos_of_lt_pi ( by cases Set.mem_uIcc.mp hx <;> linarith ) ( by cases Set.mem_uIcc.mp hx <;> linarith ) ) );
           · exact Or.inl <| by ring;
@@ -68,7 +68,11 @@ lemma integral_cos_div_sin_sq (δ : ℝ) (hδ : 0 < δ) (hδ' : δ < π / 2) :
       rotate_right;
       use fun x => -1 / Real.sin x;
       · norm_num ; ring;
-      · intro x hx; convert HasDerivAt.div ( hasDerivAt_const _ _ ) ( Real.hasDerivAt_sin x ) ( ne_of_gt ( Real.sin_pos_of_mem_Ioo ⟨ by cases Set.mem_uIcc.mp hx <;> linarith, by cases Set.mem_uIcc.mp hx <;> linarith ⟩ ) ) using 1 ; ring;
+      · intro x hx;
+        convert! HasDerivAt.div ( hasDerivAt_const _ _ ) ( Real.hasDerivAt_sin x )
+         ( ne_of_gt ( Real.sin_pos_of_mem_Ioo ⟨ by cases Set.mem_uIcc.mp hx <;> linarith,
+         by cases Set.mem_uIcc.mp hx <;> linarith ⟩ ) ) using 1 ;
+        ring;
       · apply_rules [ ContinuousOn.intervalIntegrable ];
         exact continuousOn_of_forall_continuousAt fun x hx => ContinuousAt.div ( Real.continuous_cos.continuousAt ) ( Real.continuous_sin.continuousAt.pow 2 ) ( ne_of_gt ( sq_pos_of_pos ( Real.sin_pos_of_pos_of_lt_pi ( by cases Set.mem_uIcc.mp hx <;> linarith ) ( by cases Set.mem_uIcc.mp hx <;> linarith ) ) ) )
 
@@ -143,7 +147,7 @@ lemma abs_besselJ₀_le_sqrt (r : ℝ) (hr : 2 ≤ r) : |besselJ₀ r| ≤ 3 / �
       · linarith;
       · refine' le_trans ( intervalIntegral.integral_mono_on _ _ _ _ ) _;
         exacts [ fun _ => 1, by linarith, Continuous.intervalIntegrable ( by continuity ) _ _, Continuous.intervalIntegrable ( by continuity ) _ _, fun _ _ => Real.abs_cos_le_one _, by norm_num ];
-    convert le_trans ( abs_add_three _ _ _ ) ( add_le_add_three h_bound1 h_bound2 h_bound3 ) using 1;
+    convert! le_trans ( abs_add_three _ _ _ ) ( add_le_add_three h_bound1 h_bound2 h_bound3 ) using 1;
     rw [ intervalIntegral.integral_add_adjacent_intervals, intervalIntegral.integral_add_adjacent_intervals ] <;> apply_rules [ Continuous.intervalIntegrable ] <;> exact Real.continuous_cos.comp <| by continuity;
   -- Now sin δ = sin(1/√r) ≥ 2·(1/√r)/π = 2/(π√r)  (using sin x ≥ 2x/π for x ∈ [0, π/2])
   have h_sin_bound : Real.sin δ ≥ 2 * δ / Real.pi := by
@@ -223,7 +227,7 @@ lemma integral_besselJ₀_div_bounded :
         -- For $r \geq 2$, we have $|J_0(r)| \leq \frac{3}{\sqrt{r}}$.
         have h_bound : ∀ r : ℝ, 2 ≤ r → abs (besselJ₀ r) ≤ 3 / Real.sqrt r := by
           exact fun r a => abs_besselJ₀_le_sqrt r a;
-        intro r hr; rw [ abs_div, abs_of_nonneg ( by positivity : 0 ≤ r ) ] ; convert mul_le_mul_of_nonneg_right ( h_bound r hr ) ( inv_nonneg.mpr ( by positivity : 0 ≤ r ) ) using 1 ; ring;
+        intro r hr; rw [ abs_div, abs_of_nonneg ( by positivity : 0 ≤ r ) ] ; convert! mul_le_mul_of_nonneg_right ( h_bound r hr ) ( inv_nonneg.mpr ( by positivity : 0 ≤ r ) ) using 1 ; ring;
         rw [ Real.sqrt_eq_rpow, ← Real.rpow_neg ( by positivity ), ← Real.rpow_neg_one, ← Real.rpow_add ( by positivity ) ] ; norm_num;
       -- So |∫₂ˣ J₀(r)/r dr| ≤ ∫₂ˣ 3r^(-3/2) dr ≤ ∫₂^∞ 3r^(-3/2) dr = 3 · 2/√2 = 3√2.
       have h_integral_bound : ∀ x : ℝ, 2 ≤ x → abs (∫ r in (2:ℝ)..x, besselJ₀ r / r) ≤ ∫ r in (2:ℝ)..x, 3 * r^(-3 / 2 : ℝ) := by

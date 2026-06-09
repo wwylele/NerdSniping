@@ -640,7 +640,7 @@ theorem φ_integrable_2d (x : Fin 2 → ℤ) :
     fun_prop
   )]
   rw [← Measure.restrict_pi_pi, ← IntegrableOn, ← MeasureTheory.volume_pi, Set.pi_univ_Icc]
-  convert integrable_φ x with x
+  convert! integrable_φ x with x
   simp [show (2 : ℝ) * 2 = 4 by norm_num]
 
 theorem φ_integrable_2d' (x : Fin 2 → ℤ) :
@@ -878,7 +878,7 @@ theorem isEquivalent_circle_integral :
       (w.2 / 2 + sin (w.2 / 2)) * (w.2 / 2 - sin (w.2 / 2))) /
       ((sin (w.1 / 2) ^ 2 + sin (w.2 / 2) ^ 2) * ((w.1 / 2) ^ 2 + (w.2 / 2) ^ 2)))| ≤
       4⁻¹ * (2 * (π / 4) ^ 2) by
-    convert this using 2
+    convert! this using 2
     field
   rw [abs_mul, abs_div, abs_of_nonneg (by simp)]
   refine mul_le_mul_of_nonneg_left ?_ (by simp)
@@ -1032,7 +1032,7 @@ theorem log_shift_equiv (a b : ℤ) :
       ring_nf
     · rw [not_le, sub_neg] at h0
       rw [sub_nonneg]
-      convert h0.le using 1
+      convert! h0.le using 1
       · simp
         ring_nf
       · simp
@@ -1082,7 +1082,7 @@ theorem log_shift_equiv (a b : ℤ) :
 theorem log_shift_equiv' (a b c d : ℤ) :
     (fun x ↦ log ((x 0 - a) ^ 2 + (x 1 - b) ^ 2) - log ((x 0 - c) ^ 2 + (x 1 - d) ^ 2))
     =O[cofinite] (1 : (Fin 2 → ℤ) → ℝ) := by
-  convert (log_shift_equiv (-a) (-b)).sub (log_shift_equiv (-c) (-d)) using 2 with x
+  convert! (log_shift_equiv (-a) (-b)).sub (log_shift_equiv (-c) (-d)) using 2 with x
   push_cast
   simp [← sub_eq_add_neg]
 
@@ -1441,7 +1441,7 @@ theorem φ_integrable_U (x : Fin 2 → ℤ) :
   obtain h := φ_integrable_mapU x
   rw [MeasurePreserving.integrableOn_image (by exact measurePreserving_add_right _ _)
     (MeasurableEquiv.measurableEmbedding _)] at h
-  convert h with p
+  convert! h with p
   simp only [Fin.isValue, neg_mul, MeasurableEquiv.coe_addRight, Function.comp_apply, Prod.fst_add,
     add_zero, Prod.snd_add, ← sub_eq_add_neg, cos_sub_two_pi]
   congrm (1 - ?_) / $(by simp)
@@ -1453,7 +1453,7 @@ theorem φ_integrable_D (x : Fin 2 → ℤ) :
   obtain h := φ_integrable_mapD x
   rw [MeasurePreserving.integrableOn_image (by exact measurePreserving_add_right _ _)
     (MeasurableEquiv.measurableEmbedding _)] at h
-  convert h with p
+  convert! h with p
   simp only [Fin.isValue, MeasurableEquiv.coe_addRight, Function.comp_apply, Prod.fst_add, add_zero,
     Prod.snd_add, cos_add_two_pi]
   congrm (1 - ?_) / $(by simp)
@@ -1465,7 +1465,7 @@ theorem φ_integrable_L (x : Fin 2 → ℤ) :
   obtain h := φ_integrable_mapL x
   rw [MeasurePreserving.integrableOn_image (by exact measurePreserving_add_right _ _)
     (MeasurableEquiv.measurableEmbedding _)] at h
-  convert h with p
+  convert! h with p
   simp only [Fin.isValue, MeasurableEquiv.coe_addRight, Function.comp_apply, Prod.fst_add, add_zero,
     Prod.snd_add, cos_add_two_pi]
   congrm (1 - ?_) / $(by simp)
@@ -1477,7 +1477,7 @@ theorem φ_integrable_R (x : Fin 2 → ℤ) :
   obtain h := φ_integrable_mapR x
   rw [MeasurePreserving.integrableOn_image (by exact measurePreserving_add_right _ _)
     (MeasurableEquiv.measurableEmbedding _)] at h
-  convert h with p
+  convert! h with p
   simp only [Fin.isValue, neg_mul, MeasurableEquiv.coe_addRight, Function.comp_apply, Prod.fst_add,
     add_zero, Prod.snd_add, ← sub_eq_add_neg, cos_sub_two_pi]
   congrm (1 - ?_) / $(by simp)
@@ -1870,7 +1870,7 @@ theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
       norm_cast at hx
       grind
     obtain h := (Real.hasDerivAt_tan (by exact hcos)).comp _ ((hasDerivAt_id x).div_const 2)
-    convert h using 1
+    convert! h using 1
     rw [cos_sq, id]
     rw [mul_div_cancel₀ _ (by simp)]
     rw [← mul_div_mul_comm, one_mul, add_mul, div_mul_cancel₀ _ (by simp),
@@ -2031,12 +2031,12 @@ theorem φ_2d_1_1 : φ ![1, 1] = π⁻¹ := by
   simpa using φ_2d_diagonal 1
 
 theorem φ_2d_2_2 : φ ![2, 2] = π⁻¹ * (4 / 3) := by
-  convert φ_2d_diagonal 2 using 1
+  convert! φ_2d_diagonal 2 using 1
   simp [Finset.range]
   norm_num
 
 theorem φ_2d_3_3 : φ ![3, 3] = π⁻¹ * (23 / 15) := by
-  convert φ_2d_diagonal 3 using 1
+  convert! φ_2d_diagonal 3 using 1
   simp [Finset.range]
   norm_num
 
