@@ -370,8 +370,9 @@ here.
 Fourier transform to recover `unitCur 0`, which is a integral over a hypercube
 $$
 unitCur_0 (x_0, x_1,\cdot,x_{n-1}) =
-\frac{1}{(2\pi)^n} \integral_{w\mem [-\pi, \pi]^n \left(\cos \sum_i, x_i w_i \right) dw
-$$ -/
+\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n \left(\cos \sum_i, x_i w_i \right) dw
+$$
+-/
 theorem fourier_unitCur (x : Fin n → ℤ) :
     unitCur 0 x = (2 * π)⁻¹ ^ n *
     ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π), cos (∑ i, x i * w i) := by
@@ -435,9 +436,10 @@ theorem fourier_unitCur (x : Fin n → ℤ) :
 /-- We define function `φ` also as a similar inverse Fourier transform
 $$
 \phi (x_0, x_1,\cdot,x_{n-1}) =
-\frac{1}{(2\pi)^n} \integral_{w\mem [-\pi, \pi]^n
+\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n
 \frac{1 - \cos \sum_i, x_i w_i}{\sum_i 2 - 2\cos w_i} dw
-$$ -/
+$$
+-/
 def φ (x : Fin n → ℤ) : ℝ :=
   (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
     (1 - Real.cos (∑ i, x i * w i)) / ∑ i, (2 - 2 * Real.cos (w i))
@@ -710,13 +712,18 @@ In this section, we show the asymptotic behavior of `φ` in different dimensions
 - When $n = 2$, `φ x` grows like $\log \lVert x \rVert$
 - When $n = 1$, `φ x` grows linearly
 
-Compare this to physical intuition: in a $n$-dimensional space, current density should decrease like
-${\lVert x \rVert}^{-(n - 1)}$ (inverse-square law in 3D), and the potential, being the integral of
-it, should grow like ${\lVert x \rVert}^{-(n - 2)}$ except for $n = 2$, where the integral becomes
-$\log \lVert x \rVert$.
+Compare this to physical intuition: in a $n$-dimensional space, current density sourced from a point
+should decrease like ${\lVert x \rVert}^{-(n - 1)}$ (inverse-square law in 3D), and the potential,
+being the integral of t, should grow like ${\lVert x \rVert}^{-(n - 2)}$ except for $n = 2$, where
+the integral becomes $\log \lVert x \rVert$.
 
+We start with the $n \ge 3$ case
 -/
 
+/--
+For $n \ge 3$, it is possible to bound the integral by bounding the numerator to 1. This creates
+poles at 0, but it is still integrable.
+-/
 theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
     |φ x| ≤ (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
     1 / ∑ i, (1 - Real.cos (w i)) := by
@@ -823,6 +830,54 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
     norm_num
     apply neg_one_le_cos
 
+/-- Thus `φ` is bounded above for $n \ge 3$. -/
+theorem bddAbove_φ (hn : 3 ≤ n) : BddAbove (Set.range <| φ (n := n)) := by
+  obtain habs := abs_φ_le hn
+  simp_rw [abs_le] at habs
+  use (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
+    1 / ∑ i, (1 - Real.cos (w i))
+  simp_rw [mem_upperBounds, Set.mem_range, forall_exists_index, forall_apply_eq_imp_iff]
+  exact fun x ↦ (habs x).2
+
+/-!
+
+We show the asymptotic behavior for $n = 2$ next. The precise statement we want to prove is: the
+function $g(x)$ defined below is bounded above and below
+
+$$
+g(x, y) = \phi(x, y) - \frac{1}{4 \pi} \log (x^2 + y^2) =
+\phi(x, y) - \frac{1}{2 \pi} \log \lVert (x, y) \rVert_2
+$$
+
+(This assumes the junk value $log 0 = 0$, but a single point isn't important for the global bound)
+
+We show this using a chain of asymptotic equivalences:
+$$
+\phi(x, y)
+\sim \iint_{[-\pi,\pi]^2} \frac{1-\cos (x u + y v)}{4 - (2 \cos u + 2 \cos v)}du dv
+$$
+$$
+\sim \iint_{u^2+v^2\le 1} \frac{1-\cos (x u + y v)}{4 - (2 \cos u + 2 \cos v)}du dv
+$$
+$$
+\sim \iint_{u^2+v^2\le 1} \frac{1-\cos (x u + y v)}{u^2 + v^2}du dv
+$$
+$$
+\sim \int_{r=0}^{\lVert (x, y) \rVert_2} \int_{\theta=-\pi}^{\pi}
+\frac{1-\cos (r \cos(\theta + \alpha))}{r}dr d\theta
+$$
+$$
+\sim \log \lVert (x, y) \rVert_2
+$$
+where each equivalence means bounded difference between two sides after multiplying by certain
+factors. The main idea here is that the logarithmic growth comes from the integration around the
+singularity, so we can carve out a small disk (a unit disk will suffice), and change to polar
+coordinates. The last equivalence is a property of Bessel function, which is proved at
+`asymptotic_bessel`.
+
+-/
+
+/-- Specialize the integral to 2D case. -/
 theorem φ_2d (x : Fin 2 → ℤ) :
     φ x = (4 * π ^ 2)⁻¹ * ∫ w in Set.Icc (-π) π ×ˢ Set.Icc (-π) π,
     (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)) := by
@@ -838,6 +893,7 @@ theorem φ_2d (x : Fin 2 → ℤ) :
     norm_num
   · norm_num
 
+/-- A common lemma we will use to determine that the only singularity is at 0. -/
 theorem eq_zero_of_φ_2d_deno_le_zero
     {p : ℝ × ℝ} (hp : p ∈ Set.Icc (-π) π ×ˢ Set.Icc (-π) π)
     (h : 4 - (2 * cos p.1 + 2 * cos p.2) ≤ 0) : p = 0 := by
@@ -857,6 +913,7 @@ theorem eq_zero_of_φ_2d_deno_le_zero
   · exact h1
   · exact h2
 
+/-- Specialize integrability to 2D. -/
 theorem φ_integrable_2d (x : Fin 2 → ℤ) :
     IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
     (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) volume := by
@@ -869,6 +926,7 @@ theorem φ_integrable_2d (x : Fin 2 → ℤ) :
   convert! integrable_φ x with x
   simp [show (2 : ℝ) * 2 = 4 by norm_num]
 
+/-- Integrability of an equivalent function we will use. -/
 theorem φ_integrable_2d' (x : Fin 2 → ℤ) :
     IntegrableOn (fun w ↦ ((1 - cos (x 0 * w.1 + x 1 * w.2)) / (w.1 ^ 2 + w.2 ^ 2)))
       (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) volume := by
@@ -888,6 +946,7 @@ theorem φ_integrable_2d' (x : Fin 2 → ℤ) :
     rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
     exact add_le_add (two_mul_one_sub_cos_le _) (two_mul_one_sub_cos_le _)
 
+/-- Integrability related to Bessel function. -/
 theorem integrable_bessel (x1 x2 : ℝ) :
     IntegrableOn (fun p ↦ (1 - cos (x1 * p.1 * cos (p.2 - x2))) / p.1)
     (Set.Ioc 0 1 ×ˢ Set.Ioo (-π) π) (volume.prod volume) := by
@@ -909,6 +968,7 @@ theorem integrable_bessel (x1 x2 : ℝ) :
       simpa using abs_cos_le_one _
     exact _root_.sq_le hp.1.1.le hp.1.2
 
+/-- The unit disk is a subset of the containing square. -/
 theorem disk_subset :
     {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1} ⊆ Set.Icc (-(1 : ℝ)) 1 ×ˢ Set.Icc (-(1 : ℝ)) 1 := by
   intro p hp
@@ -921,6 +981,7 @@ theorem disk_subset :
   · exact lt_add_of_lt_of_nonneg (by simpa using hp) (sq_nonneg _)
   · exact lt_add_of_nonneg_of_lt (sq_nonneg _) (by simpa using hp)
 
+/-- The unit disk is a subset of the original square to integrate on. -/
 theorem disk_subset' : {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1} ⊆ Set.Icc (-π) π ×ˢ Set.Icc (-π) π := by
   have honepi : 1 ≤ π := le_trans (by simp) pi_gt_three.le
   apply disk_subset.trans
@@ -929,7 +990,8 @@ theorem disk_subset' : {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1} ⊆ Set.Icc (-π) π ×ˢ S
   · simp [honepi]
   · simp [honepi]
 
-theorem isEquivalent_circle_integral :
+/-- Equivalence when we change the denominator of the integrant. -/
+theorem φ_integral_change_deno :
     (fun x ↦ (∫ (w : ℝ × ℝ) in {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1},
       (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2))) -
     ∫ (w : ℝ × ℝ) in {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1}, (
@@ -1017,6 +1079,7 @@ theorem isEquivalent_circle_integral :
   · apply sin_cube_bound ⟨hw1l.le, hw1r.le⟩
   · apply sin_cube_bound ⟨hw2l.le, hw2r.le⟩
 
+/-- Logarithmatic equivalence for `φ` in 2D. -/
 theorem φ_equiv_log_2d :
     (fun (x : Fin 2 → ℤ) ↦ φ x - (4 * π)⁻¹ * log (x 0 ^ 2 + x 1 ^ 2)) =O[cofinite]
     (1 : (Fin 2 → ℤ) → ℝ) := by
@@ -1074,7 +1137,7 @@ theorem φ_equiv_log_2d :
         exact neg_one_le_cos _
       · rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
         exact add_nonneg (by simpa using cos_le_one _) (by simpa using cos_le_one _)
-  rw [← (isEquivalent_circle_integral.const_mul_left (4 * π ^ 2)⁻¹).sub_iff_left]
+  rw [← (φ_integral_change_deno.const_mul_left (4 * π ^ 2)⁻¹).sub_iff_left]
   simp_rw [mul_sub, sub_sub_sub_cancel_left]
   let zr (x : Fin 2 → ℤ) : ℝ × ℝ := (x 0, x 1)
   change ((fun (x : ℝ × ℝ) ↦ ((4 * π ^ 2)⁻¹ * ∫ (w : ℝ × ℝ) in {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1},
@@ -1127,9 +1190,56 @@ theorem φ_equiv_log_2d :
   apply IsBigO.const_mul_left
   exact asymptotic_bessel.comp_fst _
 
+/-- Restating logarithmatic equivalence for `φ` in 2D in terms of a global bound. -/
 theorem φ_2d_sub_log_bounded :
     ∃ c : ℝ, ∀ x : Fin 2 → ℤ, |φ x - (4 * π)⁻¹ * log (x 0 ^ 2 + x 1 ^ 2)| ≤ c :=
   bounded_of_isBigO_cofinite φ_equiv_log_2d
+
+/-!
+Finally, we turn to the 1D case. We can direclty compute using induction that
+$$
+\phi (x) = \frac{1}{2} |x|
+$$
+and thus `φ` grows linearly in 1D case.
+-/
+
+theorem φ_1d_nat (x : ℕ) : φ ![x] = 2⁻¹ * x := by
+  induction x using Nat.twoStepInduction with
+  | zero => exact φ_zero.trans (by simp)
+  | one =>
+    refine Eq.trans ?_ ((φ_off_center (0 : Fin 1)).trans ?_)
+    · rfl
+    · simp
+  | more n h1 h2 =>
+    push_cast at ⊢ h2
+    conv_lhs => rw [← one_add_one_eq_two, ← add_assoc]
+    obtain h := φ_kirchhoff ![n + 1]
+    conv_rhs at h => rw [unitCur, Pi.single_eq_of_ne (by simp; grind)]
+    simp [Matrix.vecHead, h1, h2] at h
+    linear_combination h
+
+theorem φ_1d (x : ℤ) : φ ![x] = 2⁻¹ * |x| := by
+  obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg x
+  · simp [φ_1d_nat]
+  · trans φ (-![(n : ℤ)])
+    · simp
+    · rw [φ_neg, φ_1d_nat]
+      simp
+
+theorem φ_1d' (x : Fin 1 → ℤ) : φ x = 2⁻¹ * |x 0| := by
+  rw [show x = ![x 0] by
+    ext i
+    fin_cases i
+    simp
+  ]
+  rw [φ_1d]
+  simp
+
+/-!
+
+## 5. Solution to `IsValidCircuit`
+
+-/
 
 theorem log_shift_equiv (a b : ℤ) :
     (fun x ↦ log ((x 0 + a) ^ 2 + (x 1 + b) ^ 2) - log (x 0 ^ 2 + x 1 ^ 2)) =O[cofinite]
@@ -1223,46 +1333,6 @@ theorem bound_φ_2d (a b : Fin 2 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - 
   simp_rw [Pi.sub_apply]
   push_cast
   exact h' x
-
-theorem bddAbove_φ (hn : 3 ≤ n) : BddAbove (Set.range <| φ (n := n)) := by
-  obtain habs := abs_φ_le hn
-  simp_rw [abs_le] at habs
-  use (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
-    1 / ∑ i, (1 - Real.cos (w i))
-  simp_rw [mem_upperBounds, Set.mem_range, forall_exists_index, forall_apply_eq_imp_iff]
-  exact fun x ↦ (habs x).2
-
-theorem φ_1d_nat (x : ℕ) : φ ![x] = 2⁻¹ * x := by
-  induction x using Nat.twoStepInduction with
-  | zero => exact φ_zero.trans (by simp)
-  | one =>
-    refine Eq.trans ?_ ((φ_off_center (0 : Fin 1)).trans ?_)
-    · rfl
-    · simp
-  | more n h1 h2 =>
-    push_cast at ⊢ h2
-    conv_lhs => rw [← one_add_one_eq_two, ← add_assoc]
-    obtain h := φ_kirchhoff ![n + 1]
-    conv_rhs at h => rw [unitCur, Pi.single_eq_of_ne (by simp; grind)]
-    simp [Matrix.vecHead, h1, h2] at h
-    linear_combination h
-
-theorem φ_1d (x : ℤ) : φ ![x] = 2⁻¹ * |x| := by
-  obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg x
-  · simp [φ_1d_nat]
-  · trans φ (-![(n : ℤ)])
-    · simp
-    · rw [φ_neg, φ_1d_nat]
-      simp
-
-theorem φ_1d' (x : Fin 1 → ℤ) : φ x = 2⁻¹ * |x 0| := by
-  rw [show x = ![x 0] by
-    ext i
-    fin_cases i
-    simp
-  ]
-  rw [φ_1d]
-  simp
 
 theorem bound_φ_1d (a b : Fin 1 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - b)| ≤ c := by
   use 2⁻¹ * |b 0 - a 0|
