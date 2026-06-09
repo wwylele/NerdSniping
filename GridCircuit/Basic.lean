@@ -364,15 +364,22 @@ The construction of `φ` is obtained by taking an inverse Fourier transform of a
 The full derivation via Fourier transform is omitted, but you can get the general idea by the proof
 here.
 
--/
-
-/-- We compute the discrete Fourier transform of `unitCur 0`, then state the result using inverse
+We compute the discrete Fourier transform of `unitCur 0`, then state the result using inverse
 Fourier transform to recover `unitCur 0`, which is a integral over a hypercube
 $$
 unitCur_0 (x_0, x_1,\cdot,x_{n-1}) =
 \frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n \left(\cos \sum_i, x_i w_i \right) dw
 $$
+
+Then we define function `φ` also as a similar inverse Fourier transform
+$$
+\phi (x_0, x_1,\cdot,x_{n-1}) =
+\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n
+\frac{1 - \cos \sum_i, x_i w_i}{\sum_i 2 - 2\cos w_i} dw
+$$
+
 -/
+
 theorem fourier_unitCur (x : Fin n → ℤ) :
     unitCur 0 x = (2 * π)⁻¹ ^ n *
     ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π), cos (∑ i, x i * w i) := by
@@ -433,13 +440,6 @@ theorem fourier_unitCur (x : Fin n → ℤ) :
     push_cast
     ring
 
-/-- We define function `φ` also as a similar inverse Fourier transform
-$$
-\phi (x_0, x_1,\cdot,x_{n-1}) =
-\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n
-\frac{1 - \cos \sum_i, x_i w_i}{\sum_i 2 - 2\cos w_i} dw
-$$
--/
 def φ (x : Fin n → ℤ) : ℝ :=
   (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
     (1 - Real.cos (∑ i, x i * w i)) / ∑ i, (2 - 2 * Real.cos (w i))
@@ -849,7 +849,7 @@ g(x, y) = \phi(x, y) - \frac{1}{4 \pi} \log (x^2 + y^2) =
 \phi(x, y) - \frac{1}{2 \pi} \log \lVert (x, y) \rVert_2
 $$
 
-(This assumes the junk value $log 0 = 0$, but a single point isn't important for the global bound)
+(This assumes the junk value $\log 0 = 0$, but a single point isn't important for the global bound)
 
 We show this using a chain of asymptotic equivalences:
 $$
@@ -864,7 +864,7 @@ $$
 $$
 $$
 \sim \int_{r=0}^{\lVert (x, y) \rVert_2} \int_{\theta=-\pi}^{\pi}
-\frac{1-\cos (r \cos(\theta + \alpha))}{r}dr d\theta
+\frac{1-\cos (r \cos(\theta))}{r}dr d\theta
 $$
 $$
 \sim \log \lVert (x, y) \rVert_2
@@ -1239,8 +1239,19 @@ theorem φ_1d' (x : Fin 1 → ℤ) : φ x = 2⁻¹ * |x 0| := by
 
 ## 5. Solution to `IsValidCircuit`
 
+In this section, we will prove
+`IsValidCircuit (unitCur a - unitCur b) (fun x ↦ φ (x - a) - φ (x - b))`. The two conditions
+for this are now within reach:
+- Because of linarity, Kirchhoff's law holds for any linear combination of `φ`.
+- The difference between two `φ` is bounded thanks to the tame asymptotics.
+
+The hardest part in this is to show the boundedness for 2D cases. We will first show that
+the difference between two `log`-like functions are bounded, then transfer the result to `φ`.
+
 -/
 
+/-- The difference between $log \lVert x \rVert_2^2$ and $log \lVert x+(a,b) \rVert_2^2$ is
+bounded. -/
 theorem log_shift_equiv (a b : ℤ) :
     (fun x ↦ log ((x 0 + a) ^ 2 + (x 1 + b) ^ 2) - log (x 0 ^ 2 + x 1 ^ 2)) =O[cofinite]
     (1 : (Fin 2 → ℤ) → ℝ) := by
@@ -1309,6 +1320,7 @@ theorem log_shift_equiv (a b : ℤ) :
     · refine mul_le_mul_of_nonneg_left ?_ (by simp)
       apply le_add_of_nonneg_of_le (sq_nonneg _) (by exact_mod_cast Int.le_self_sq _)
 
+/-- Generalize the previous statement to any pair of points. -/
 theorem log_shift_equiv' (a b c d : ℤ) :
     (fun x ↦ log ((x 0 - a) ^ 2 + (x 1 - b) ^ 2) - log ((x 0 - c) ^ 2 + (x 1 - d) ^ 2))
     =O[cofinite] (1 : (Fin 2 → ℤ) → ℝ) := by
@@ -1316,6 +1328,7 @@ theorem log_shift_equiv' (a b c d : ℤ) :
   push_cast
   simp [← sub_eq_add_neg]
 
+/-- The difference between two `φ` in 2D is bounded. -/
 theorem bound_φ_2d (a b : Fin 2 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - b)| ≤ c := by
   obtain ⟨c, h⟩ := φ_2d_sub_log_bounded
   obtain ⟨d, h'⟩ := bounded_of_isBigO_cofinite (log_shift_equiv' (a 0) (a 1) (b 0) (b 1))
@@ -1334,6 +1347,7 @@ theorem bound_φ_2d (a b : Fin 2 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - 
   push_cast
   exact h' x
 
+/-- We also show the difference between two `φ` in 1D as a direct result of linear growth. -/
 theorem bound_φ_1d (a b : Fin 1 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - b)| ≤ c := by
   use 2⁻¹ * |b 0 - a 0|
   intro x
@@ -1344,6 +1358,8 @@ theorem bound_φ_1d (a b : Fin 1 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - 
   grw [abs_abs_sub_abs_le_abs_sub]
   simp
 
+/-- Combining all cases above, we show that `fun x ↦ φ (x - a) - φ (x - b)` is the
+unique solution to `IsValidCircuit (unitCur a - unitCur b)`. -/
 theorem isValidCircuit_φ [NeZero n] (a b : Fin n → ℤ) :
     IsValidCircuit (unitCur a - unitCur b) (fun x ↦ φ (x - a) - φ (x - b)) where
   kirchhoff x := by
@@ -1415,15 +1431,39 @@ theorem isValidCircuit_φ [NeZero n] (a b : Fin n → ℤ) :
       apply BddAbove.mono (Set.range_comp_subset_range _ _)
       exact bddAbove_φ (by simp)
 
+/-- And as an immediate corollary, the equivalent resistance is two times `φ` in all cases. -/
 theorem equivResistance_eq_two_mul_φ [NeZero n] (x : Fin n → ℤ) :
     equivResistance x = some (2 * φ x) := by
   rw [equivResistance_eq (isValidCircuit_φ 0 x)]
   simp [two_mul]
 
+/-- Applying this to the neighbor of the center, we get that the equivalent resistance between
+two neighboring points is $1 / n$. -/
 theorem equivResistance_off_center [NeZero n] (e : Fin n) :
     equivResistance (Pi.single e 1) = some ((n : ℝ)⁻¹) := by
   rw [equivResistance_eq_two_mul_φ, φ_off_center, mul_inv, ← mul_assoc, mul_inv_cancel₀ (by simp),
     one_mul]
+
+/-
+
+## 6. Calculation for the 2D case
+
+In this section, we deriv more closed-form results for the 2D case, and answers the original
+nerd sniping question.
+
+The key result is that `φ ![x, x]` along the diagonal line has a simple formula
+$$
+\phi(x, x) = \frac{1}{\pi}\left(1 + \frac{1}{3} + \frac{1}{5} + \cdots + \frac{1}{2x - 1}\right)
+$$
+
+Combining with the known value `φ ![1, 0] = 4⁻¹`, it is possible to calculate any `φ ![x, y]`
+using symmetry and Kirchhoff's law, and they will be some rational combinations of $1$ and $π$.
+
+To calculate the integral on the diagonal line, we expand the integral domain from the square
+to the diamond $(2\pi, 0) - (0, 2\pi) - (-2\pi, 0) - (0, -2π)$. Because of the periodicity of
+the integrand, this simply doubles the resulting value. We then change the variable to rotate
+it by 45 degrees. The new integral can have variables separated, allowing us to calculate it.
+-/
 
 def triangleU : Set (ℝ × ℝ) := {p | π ≤ p.2 ∧ p.1 + p.2 ≤ 2 * π ∧ p.2 - p.1 ≤ 2 * π}
 def triangleD : Set (ℝ × ℝ) := {p | p.2 ≤ -π ∧ -2 * π ≤ p.1 + p.2 ∧ -2 * π ≤ p.2 - p.1}
