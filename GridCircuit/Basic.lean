@@ -1,13 +1,124 @@
 import GridCircuit.Misc
 import GridCircuit.Bessel
 
+/-!
+
+# Nerd Sniping - the Infinite Grid of Resistors
+
+In this file we formalize the answer and related results to [xkcd's "nerd sniping" question](https://xkcd.com/356/)
+
+![I first saw this problem on the Google Labs Aptitude Test.  A professor and I filled a blackboard without getting anywhere.  Have fun.](https://imgs.xkcd.com/comics/nerd_sniping.png)
+
+Here we state the problem in a more general form in aribtrary dimensions: On the $n$-dimensional
+grid where each neighboring nodes are connected by an one-ohm resistor, what is the equivalent
+resistance between the two marked nodes?
+
+This file formalizes the following result
+* The translation to a formal mathematical problem and proof of the unique solution (if exists)
+* The general formula in arbitrary dimensions and for any pair of specific nodes.
+* Computation for the solution in the two-dimension case, and the answer to the original question
+
+-/
+
 open Real MeasureTheory Filter Topology Asymptotics
 
 variable {n : ℕ}
 
 noncomputable section
 
--- https://math.stackexchange.com/a/4452978/1197328
+/-!
+
+## 1. Mathematical Model
+
+The equivalent resistance is computed by $V / I$, where $V$ is the electrical potential difference
+between the two nodes, and $I$ is the current into one point and equally out from the other.
+Throughout the file, we will assume the standard units (ohm, volt, and amp) and omit them from
+formulas. By this convention, if we fix the input current to 1, the equivalent resistance is equal
+to the potential difference.
+
+Once voltage is applied to the two nodes, there are two laws that determine the current and the
+potential:
+* Ohm's law: $R = V / I$ for any segment of the curcuit. Since every segment between two
+  neighboring nodes has a resistance of 1, we can simplify this to $I(p, q) = U(p) - U(q)$ for any
+  pair of neighboring nodes $p$ and $q$, where $u(p)$ is the potential at point $p$, and $I(p, q)$
+  is the current from $p$ to $q$.
+* Kirchhoff's current law: the signed sum of currents at a node is zero. In our $n$-dimension grid,
+  each node has $2n$ currents with neighbors, and possibly one external current input. In our
+  convention, the current out from the node is positive, and the current into the node is negative.
+
+We can combine the two laws to form a formula about potentials $U(p)$ and external currents $I(p)$:
+$$
+\left(\sum_{i=0}^{n-1} U(p + e_i) - U(p)\right) + \left(\sum_{i=0}^{n-1} U(p - e_i) - U(p)\right)
+= I(p)
+$$
+where $e_i$ are unit vectors in each direction.
+
+In addition to the formula, we add another constraint: the potential as a function of node should be
+bounded. This is to rule out solutions such as global external electrical field, where there is no
+external current input, but internal current is still induced.
+
+We group these contraints in `IsValidCircuit I U`, where `I : (Fin n → ℤ) → ℝ` is the external
+current at each node, and `U : (Fin n → ℤ) → ℝ` is the potential at each node.
+-/
+
+/-- `IsValidCircuit I U` means the external current input `I` and potential `U` forms a valid
+circuit over the infinite grid. -/
+structure IsValidCircuit (cur : (Fin n → ℤ) → ℝ) (pot : (Fin n → ℤ) → ℝ) : Prop where
+  /-- A valid circuit should follow Ohm's law and Kirchhoff's law. -/
+  kirchhoff (x : Fin n → ℤ) :
+    ∑ k, (pot (x - Pi.single k 1) - pot x) + ∑ k, (pot (x + Pi.single k 1) - pot x) = cur x
+  /-- A valid potential function should be bounded below. -/
+  bddBelow : BddBelow (Set.range pot)
+  /-- A valid potential function should be bounded above. -/
+  bddAbove : BddAbove (Set.range pot)
+
+/-!
+
+Once we have the definition of a valid circuit, the formalization of equivalent resistance is to
+ask the potential difference given a pair of input current. We use `unitCur c` to express a current
+input function that consists of a unit input at node `c : Fin n → ℤ`. The formalized question them
+becomes: given a valid circuit for `(unitCur 0 - unitCur x)`, find the potential between `0` and
+`x`.
+
+-/
+
+/-- The unit input current at node `c`, as a function over nodes. -/
+def unitCur (c x : Fin n → ℤ) : ℝ := Pi.single (M := fun (_ : Fin n → ℤ) ↦ ℝ) c 1 x
+
+open Classical in
+/-- The definition of the solution. This definition uses `Exists.choose` to nonstructively return
+the return the potential difference for input current `(unitCur 0 - unitCur x)`, and returns `none`.
+if no valid circuit exists. We will later show the existence of the valid circuit constructively,
+as well as their uniqueness. -/
+def equivResistance (x : Fin n → ℤ) : Option ℝ :=
+  if h : ∃ pot, IsValidCircuit (unitCur 0 - unitCur x) pot then
+    some <| h.choose x - h.choose 0
+  else
+    none
+
+/-!
+
+## 2. Uniqueness of Solution
+
+This section justifies the mathematical model by showing that its solution space is sub-singleton.
+This follows from the discrete version of Liouville's theorem applied to bounded harmonic function,
+which we will prove first.
+
+Liouville's theorem says that if bounded function (above and below) satisfies the Laplace' equation
+everywhere (which is equivalent to Kirchhoff's law with null external current), then it is a
+constant function. There are stronger versions of this theorem (e.g. only requiring one-side
+boundedness, and only requiring a large portion of nodes to satisfy the equation), but we the
+elementary version will suffice here.
+
+We follow the proof posted at https://math.stackexchange.com/a/4452978/1197328
+
+-/
+
+/-- Lemma 1 for Liouville's theorem: if a discrete harmonic function
+$f : \mathbb{Z}^n \to \mathbb{R}$ satisfies for certain $L$ and a unit direction $e$
+$$|f(x) + f(x + e) + f(x + 2e) + \cdots + f(x + ke)| \le L$$
+for all $x$ and $k$, then $f$ is constantly 0. In the first version we shows the nonpositivity of
+$f$, and then use antisymmetry in the next version. -/
 theorem liouville_lemma1 (f : (Fin n → ℤ) → ℝ)
     (hharmonic : ∀ x, ∑ k, (f (x - Pi.single k 1) - f x) + ∑ k, (f (x + Pi.single k 1) - f x) = 0)
     (l : ℝ) (e : Fin n)
@@ -92,6 +203,7 @@ theorem liouville_lemma1 (f : (Fin n → ℤ) → ℝ)
   rw [← div_le_iff₀ (by simpa using hm)]
   exact (Nat.le_ceil _).trans (by simp)
 
+/-- Full lemma 1 for Liouville's theorem: use antisymmetry on the previous lemma. -/
 theorem liouville_lemma1' (f : (Fin n → ℤ) → ℝ)
     (hharmonic : ∀ x, ∑ k, (f (x - Pi.single k 1) - f x) + ∑ k, (f (x + Pi.single k 1) - f x) = 0)
     (l : ℝ) (e : Fin n)
@@ -115,6 +227,9 @@ theorem liouville_lemma1' (f : (Fin n → ℤ) → ℝ)
       rw [neg_le] at h
       simpa using h
 
+/-- Liouville's theorem for two neighboring points: for a harmonic $f$, set
+$g(x) = f(x + e) - f(x)$ then $g$ satisfies the condition for lemma 1, and thus constantly zero,
+showing $f(x + e) = f(x)$. -/
 theorem liouville_neighbor (f : (Fin n → ℤ) → ℝ)
     (hharmonic : ∀ x, ∑ k, (f (x - Pi.single k 1) - f x) + ∑ k, (f (x + Pi.single k 1) - f x) = 0)
     (hbelow : BddBelow (Set.range f)) (habove : BddAbove (Set.range f)) (e : Fin n) :
@@ -156,6 +271,8 @@ theorem liouville_neighbor (f : (Fin n → ℤ) → ℝ)
     rw [abs_le', neg_sub]
     constructor <;> apply sub_le_sub (ha _) (hb _)
 
+/-- By inductiog on the previous lemma, a bounded harmonic function is constant on a line in any
+direction. -/
 theorem liouville_line (f : (Fin n → ℤ) → ℝ)
     (hharmonic : ∀ x, ∑ k, (f (x - Pi.single k 1) - f x) + ∑ k, (f (x + Pi.single k 1) - f x) = 0)
     (hbelow : BddBelow (Set.range f)) (habove : BddAbove (Set.range f)) (e : Fin n) (l : ℤ) :
@@ -172,6 +289,8 @@ theorem liouville_line (f : (Fin n → ℤ) → ℝ)
     rw [liouville_neighbor f hharmonic hbelow habove e (x + (Pi.single e (-↑l - 1) : Fin n → ℤ))]
     rw [add_assoc, ← Pi.single_add, sub_add_cancel]
 
+/-- By induction on the previous lemma, we get Liouville's theorem: a bounded harmonic function is
+constant globally. -/
 theorem liouville (f : (Fin n → ℤ) → ℝ)
     (hharmonic : ∀ x, ∑ k, (f (x - Pi.single k 1) - f x) + ∑ k, (f (x + Pi.single k 1) - f x) = 0)
     (hbelow : BddBelow (Set.range f)) (habove : BddAbove (Set.range f)) :
@@ -185,14 +304,10 @@ theorem liouville (f : (Fin n → ℤ) → ℝ)
   | single a l => apply liouville_line f hharmonic hbelow habove
   | add a b ha hb => rw [ha x, hb (x + a), add_assoc]
 
-structure IsElectricPotential (cur : (Fin n → ℤ) → ℝ) (pot : (Fin n → ℤ) → ℝ) : Prop where
-  kirchhoff (x : Fin n → ℤ) :
-    ∑ k, (pot (x - Pi.single k 1) - pot x) + ∑ k, (pot (x + Pi.single k 1) - pot x) = cur x
-  bddBelow : BddBelow (Set.range pot)
-  bddAbove : BddAbove (Set.range pot)
-
-theorem isElectricPotential_zero [NeZero n] {pot : (Fin n → ℤ) → ℝ} :
-    IsElectricPotential 0 pot ↔ ∃ c, pot = fun _ ↦ c where
+/-- Equivalent to Liouville's theorem, the only valid potential functions for null external current
+are constant functions. -/
+theorem isValidCircuit_zero [NeZero n] {pot : (Fin n → ℤ) → ℝ} :
+    IsValidCircuit 0 pot ↔ ∃ c, pot = fun _ ↦ c where
   mp h := by
     have hconstant : pot = fun _ ↦ pot 0 := by
       ext x
@@ -206,10 +321,12 @@ theorem isElectricPotential_zero [NeZero n] {pot : (Fin n → ℤ) → ℝ} :
       bddAbove := ⟨c, by simp⟩
     }
 
-theorem isElectrictPotential_unique [NeZero n] {cur : (Fin n → ℤ) → ℝ} {a b : (Fin n → ℤ) → ℝ}
-    (ha : IsElectricPotential cur a) (hb : IsElectricPotential cur b) :
+/-- For any specific external current functions, the valid potential function is unique up to a
+constant. -/
+theorem isValidCircuit_unique [NeZero n] {cur : (Fin n → ℤ) → ℝ} {a b : (Fin n → ℤ) → ℝ}
+    (ha : IsValidCircuit cur a) (hb : IsValidCircuit cur b) :
     ∃ c, a - b = fun _ ↦ c := by
-  rw [← isElectricPotential_zero]
+  rw [← isValidCircuit_zero]
   constructor
   · intro x
     convert congr($(ha.kirchhoff x) - $(hb.kirchhoff x)) using 1
@@ -223,22 +340,17 @@ theorem isElectrictPotential_unique [NeZero n] {cur : (Fin n → ℤ) → ℝ} {
   · exact bddBelow_range_sub ha.bddBelow hb.bddAbove
   · exact bddAbove_range_sub ha.bddAbove hb.bddBelow
 
-def unitCur (c x : Fin n → ℤ) : ℝ := Pi.single (M := fun (_ : Fin n → ℤ) ↦ ℝ) c 1 x
-
-open Classical in
-def equivResistance (x : Fin n → ℤ) : Option ℝ :=
-  if h : ∃ pot, IsElectricPotential (unitCur 0 - unitCur x) pot then
-    some <| h.choose x - h.choose 0
-  else
-    none
-
+/-- Since the uniqueness of the potential function, the infinite grid question can be answered
+when ever a valid potential function is found. -/
 theorem equivResistance_eq [NeZero n] {x : Fin n → ℤ} {pot : (Fin n → ℤ) → ℝ}
-    (h : IsElectricPotential (unitCur 0 - unitCur x) pot) :
+    (h : IsValidCircuit (unitCur 0 - unitCur x) pot) :
     equivResistance x = some (pot x - pot 0) := by
-  have h' : ∃ pot, IsElectricPotential (unitCur 0 - unitCur x) pot := ⟨pot, h⟩
-  obtain ⟨c, hc⟩ := isElectrictPotential_unique h'.choose_spec h
+  have h' : ∃ pot, IsValidCircuit (unitCur 0 - unitCur x) pot := ⟨pot, h⟩
+  obtain ⟨c, hc⟩ := isValidCircuit_unique h'.choose_spec h
   rw [sub_eq_iff_eq_add] at hc
   simp [equivResistance, h', hc]
+
+/-! ## 3. Fourier Transform: a Potential Solution -/
 
 theorem fourier_unitCur (x : Fin n → ℤ) :
     unitCur 0 x = (2 * π)⁻¹ ^ n *
@@ -697,40 +809,6 @@ theorem disk_subset' : {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1} ⊆ Set.Icc (-π) π ×ˢ S
   · simp [honepi]
   · simp [honepi]
 
-theorem sin_cube_bound {x : ℝ} (hx : x ∈ Set.Icc (-1) 1) :
-    |(x + sin x) * (x - sin x)| ≤ 2 * (π / 4) ^ 2 * (sin x ^ 2 * x ^ 2) := by
-  wlog h0 : 0 ≤ x
-  · have hx' : -x ∈ Set.Icc (-1) 1 := by
-      rw [Set.neg_mem_Icc_iff]
-      simpa using hx
-    have h0' : 0 ≤ -x := by grind
-    convert this hx' h0' using 2
-    · simp_rw [sin_neg]
-      ring
-    · simp_rw [sin_neg]
-      ring
-  have hxpi : x ∈ Set.Icc 0 π := by
-    refine ⟨h0, ?_⟩
-    apply hx.2.trans
-    apply le_trans (by simp) pi_gt_three.le
-  have hxsin : 0 ≤ x - sin x := sub_nonneg.mpr (sin_le h0)
-  rw [abs_of_nonneg (mul_nonneg (add_nonneg h0 (Real.sin_nonneg_of_mem_Icc hxpi)) hxsin)]
-  rw [show 2 * (π / 4) ^ 2 * (sin x ^ 2 * x ^ 2) =
-    (x + x) * ((π / 4) ^ 2 * sin x ^ 2 * x) by ring]
-  refine mul_le_mul_of_nonneg' (add_le_add_right (sin_le h0) _) ?_ hxsin (by simpa using h0)
-  trans ((π / 4) ^ 2 * (2 / Real.pi * x) ^ 2 * x); swap
-  · refine mul_le_mul_of_nonneg_right ?_ h0
-    refine mul_le_mul_of_nonneg_left ?_ (sq_nonneg _)
-    rw [sq_le_sq₀ (by positivity) (Real.sin_nonneg_of_mem_Icc hxpi)]
-    apply Real.mul_le_sin h0 (le_trans hx.2 one_le_pi_div_two)
-  suffices x - sin x ≤ x ^ 3 / 4 by
-    convert this using 1
-    field
-  rw [sub_le_comm]
-  by_cases hx0 : x = 0
-  · simp [hx0]
-  exact (sin_gt_sub_cube (lt_of_le_of_ne' h0 hx0) hx.2).le
-
 theorem isEquivalent_circle_integral :
     (fun x ↦ (∫ (w : ℝ × ℝ) in {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1},
       (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2))) -
@@ -928,12 +1006,6 @@ theorem φ_equiv_log_2d :
     rw [mul_assoc, ← mul_sub]
   apply IsBigO.const_mul_left
   exact asymptotic_bessel.comp_fst _
-
--- Should Fix Asymptotics.isBigO_one_nat_atTop_iff
-theorem bounded_of_isBigO_cofinite {α : Type*} {f : α → ℝ} (hf : f =O[cofinite] (1 : α → ℝ)) :
-    ∃ c : ℝ, ∀ x, |f x| ≤ c := by
-  rw [isBigO_cofinite_iff (by simp)] at hf
-  simpa using hf
 
 theorem φ_2d_sub_log_bounded :
     ∃ c : ℝ, ∀ x : Fin 2 → ℤ, |φ x - (4 * π)⁻¹ * log (x 0 ^ 2 + x 1 ^ 2)| ≤ c :=
@@ -1139,8 +1211,8 @@ theorem bound_φ_1d (a b : Fin 1 → ℤ) : ∃ c, ∀ x, |φ (x - a) - φ (x - 
   grw [abs_abs_sub_abs_le_abs_sub]
   simp
 
-theorem isElectricPotential_φ [NeZero n] (a b : Fin n → ℤ) :
-    IsElectricPotential (unitCur a - unitCur b) (fun x ↦ φ (x - a) - φ (x - b)) where
+theorem isValidCircuit_φ [NeZero n] (a b : Fin n → ℤ) :
+    IsValidCircuit (unitCur a - unitCur b) (fun x ↦ φ (x - a) - φ (x - b)) where
   kirchhoff x := by
     conv_lhs =>
       left
@@ -1212,7 +1284,7 @@ theorem isElectricPotential_φ [NeZero n] (a b : Fin n → ℤ) :
 
 theorem equivResistance_eq_two_mul_φ [NeZero n] (x : Fin n → ℤ) :
     equivResistance x = some (2 * φ x) := by
-  rw [equivResistance_eq (isElectricPotential_φ 0 x)]
+  rw [equivResistance_eq (isValidCircuit_φ 0 x)]
   simp [two_mul]
 
 theorem equivResistance_off_center [NeZero n] (e : Fin n) :
@@ -1226,10 +1298,6 @@ def triangleL : Set (ℝ × ℝ) := {p | p.1 ≤ -π ∧ -2 * π ≤ p.1 + p.2 �
 def triangleR : Set (ℝ × ℝ) := {p | π ≤ p.1 ∧ p.1 + p.2 ≤ 2 * π ∧ -2 * π ≤ p.2 - p.1}
 def diamond : Set (ℝ × ℝ) :=
   {p | p.1 + p.2 ≤ 2 * π ∧ -2 * π ≤ p.1 + p.2 ∧ p.2 - p.1 ≤ 2 * π ∧ -2 * π ≤ p.2 - p.1}
-
--- MeasureTheory.MeasurePreserving.add_left
--- MeasurableEquiv.addLeft
--- MeasureTheory.MeasurePreserving.setIntegral_image_emb
 
 theorem diamond_decomp :
     diamond =

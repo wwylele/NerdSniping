@@ -1,6 +1,6 @@
 import Mathlib
 
-open Real Filter
+open Real Filter Asymptotics
 
 theorem bddBelow_range_sub {α : Type*} {β : Type*} [LinearOrder β] [AddCommGroup β]
     [IsOrderedAddMonoid β]
@@ -194,3 +194,44 @@ theorem map_polarCoord_eq_cobounded :
       exact le_trans hp.le ( max_le_iff.mpr ⟨
         Real.abs_le_sqrt <| by nlinarith, Real.abs_le_sqrt <| by nlinarith ⟩ );
     · grind
+
+theorem sin_cube_bound {x : ℝ} (hx : x ∈ Set.Icc (-1) 1) :
+    |(x + sin x) * (x - sin x)| ≤ 2 * (π / 4) ^ 2 * (sin x ^ 2 * x ^ 2) := by
+  wlog h0 : 0 ≤ x
+  · have hx' : -x ∈ Set.Icc (-1) 1 := by
+      rw [Set.neg_mem_Icc_iff]
+      simpa using hx
+    have h0' : 0 ≤ -x := by grind
+    convert this hx' h0' using 2
+    · simp_rw [sin_neg]
+      ring
+    · simp_rw [sin_neg]
+      ring
+  have hxpi : x ∈ Set.Icc 0 π := by
+    refine ⟨h0, ?_⟩
+    apply hx.2.trans
+    apply le_trans (by simp) pi_gt_three.le
+  have hxsin : 0 ≤ x - sin x := sub_nonneg.mpr (sin_le h0)
+  rw [abs_of_nonneg (mul_nonneg (add_nonneg h0 (Real.sin_nonneg_of_mem_Icc hxpi)) hxsin)]
+  rw [show 2 * (π / 4) ^ 2 * (sin x ^ 2 * x ^ 2) =
+    (x + x) * ((π / 4) ^ 2 * sin x ^ 2 * x) by ring]
+  refine mul_le_mul_of_nonneg' (add_le_add_right (sin_le h0) _) ?_ hxsin (by simpa using h0)
+  trans ((π / 4) ^ 2 * (2 / Real.pi * x) ^ 2 * x); swap
+  · refine mul_le_mul_of_nonneg_right ?_ h0
+    refine mul_le_mul_of_nonneg_left ?_ (sq_nonneg _)
+    rw [sq_le_sq₀ (by positivity) (Real.sin_nonneg_of_mem_Icc hxpi)]
+    apply Real.mul_le_sin h0 (le_trans hx.2 one_le_pi_div_two)
+  suffices x - sin x ≤ x ^ 3 / 4 by
+    convert this using 1
+    field
+  rw [sub_le_comm]
+  by_cases hx0 : x = 0
+  · simp [hx0]
+  exact (sin_gt_sub_cube (lt_of_le_of_ne' h0 hx0) hx.2).le
+
+
+-- Should Fix Asymptotics.isBigO_one_nat_atTop_iff
+theorem bounded_of_isBigO_cofinite {α : Type*} {f : α → ℝ} (hf : f =O[cofinite] (1 : α → ℝ)) :
+    ∃ c : ℝ, ∀ x, |f x| ≤ c := by
+  rw [isBigO_cofinite_iff (by simp)] at hf
+  simpa using hf
