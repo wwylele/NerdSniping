@@ -14,10 +14,11 @@ grid where each neighboring nodes are connected by an one-ohm resistor, what is 
 resistance between the two marked nodes?
 
 This file formalizes the following result
-* The translation to a formal mathematical problem and proof of the unique solution (if exists)
+* The translation to a formal mathematical problem and proof of the unique solution (if exists).
 * The general formula in arbitrary dimensions and for any pair of specific nodes.
-* Computation for the solution in the two-dimension case, and the answer to the original question
+* Computation for the solution in the two-dimension case, and the answer to the original question.
 
+Hopefully this can protect me from a car accident.
 -/
 
 open Real MeasureTheory Filter Topology Asymptotics
@@ -31,7 +32,7 @@ noncomputable section
 ## 1. Mathematical Model
 
 The equivalent resistance is computed by $V / I$, where $V$ is the electrical potential difference
-between the two nodes, and $I$ is the current into one point and equally out from the other.
+between the two nodes, and $I$ is the current into one node and equally out from the other.
 Throughout the file, we will assume the standard units (ohm, volt, and amp) and omit them from
 formulas. By this convention, if we fix the input current to 1, the equivalent resistance is equal
 to the potential difference.
@@ -40,21 +41,22 @@ Once voltage is applied to the two nodes, there are two laws that determine the 
 potential:
 * Ohm's law: $R = V / I$ for any segment of the curcuit. Since every segment between two
   neighboring nodes has a resistance of 1, we can simplify this to $I(p, q) = U(p) - U(q)$ for any
-  pair of neighboring nodes $p$ and $q$, where $U(p)$ is the potential at point $p$, and $I(p, q)$
+  pair of neighboring nodes $p$ and $q$, where $U(p)$ is the potential at node $p$, and $I(p, q)$
   is the current from $p$ to $q$.
 * Kirchhoff's current law: the signed sum of currents at a node is zero. In our $n$-dimensional
   grid, each node has $2n$ currents with neighbors, and possibly one external current input. In our
   convention, the current out from the node is positive, and the current into the node is negative.
 
-We can combine the two laws to form a formula about potentials $U(p)$ and external currents $I(p)$:
+We can combine the two laws to form a formula about potentials $U(p)$ and external currents $I(p)$,
+whih we simply call "Kirchhoff's law" in the code:
 $$
 \left(\sum_{i=0}^{n-1} U(p + e_i) - U(p)\right) + \left(\sum_{i=0}^{n-1} U(p - e_i) - U(p)\right)
 = I(p)
 $$
 where $e_i$ are unit vectors in each direction.
 
-In addition to the formula, we add another constraint: the potential as a function of node should be
-bounded. This is to rule out solutions such as global external electrical field, where there is no
+In addition to the laws, we add another constraint: the potential as a function of node should be
+bounded. This is to rule out existence of a global external electrical field, where there is no
 external current input, but internal current is still induced.
 
 We group these contraints in `IsValidCircuit I U`, where `I : (Fin n → ℤ) → ℝ` is the external
@@ -75,10 +77,10 @@ structure IsValidCircuit (cur : (Fin n → ℤ) → ℝ) (pot : (Fin n → ℤ) 
 /-!
 
 Once we have the definition of a valid circuit, the formalization of equivalent resistance is to
-ask the potential difference given a pair of input current. We use `unitCur c` to express a current
-input function that consists of a unit input at node `c : Fin n → ℤ`. The formalized question them
-becomes: given a valid circuit for `(unitCur 0 - unitCur x)`, find the potential between `0` and
-`x`.
+ask the potential difference given a pair of unit input current. We use `unitCur c` to express a
+current input function that consists of a unit input at node `c : Fin n → ℤ`. The formalized
+question them becomes: given a valid circuit for `(unitCur 0 - unitCur x)`, find the potential
+between `0` and `x`.
 
 -/
 
@@ -104,10 +106,10 @@ This section justifies the mathematical model by showing that its solution space
 This follows from the discrete version of Liouville's theorem applied to bounded harmonic function,
 which we will prove first.
 
-Liouville's theorem says that if bounded function (above and below) satisfies the Laplace' equation
+Liouville's theorem says that if bounded function (above and below) satisfies the Laplace's equation
 everywhere (which is equivalent to Kirchhoff's law with null external current), then it is a
 constant function. There are stronger versions of this theorem (e.g. only requiring one-side
-boundedness, and only requiring a large portion of nodes to satisfy the equation), but we the
+boundedness, and only requiring a large portion of nodes to satisfy the equation), but the
 elementary version will suffice here.
 
 We follow the proof posted at https://math.stackexchange.com/a/4452978/1197328
@@ -115,7 +117,7 @@ We follow the proof posted at https://math.stackexchange.com/a/4452978/1197328
 -/
 
 /-- Lemma 1 for Liouville's theorem: if a discrete harmonic function
-$f : \mathbb{Z}^n \to \mathbb{R}$ satisfies for certain $L$ and a unit direction $e$
+$f : \mathbb{Z}^n \to \mathbb{R}$ satisfies that for certain $L$ and a unit direction $e$
 $$|f(x) + f(x + e) + f(x + 2e) + \cdots + f(x + ke)| \le L$$
 for all $x$ and $k$, then $f$ is constantly 0. In the first version we shows the nonpositivity of
 $f$, and then use antisymmetry in the next version. -/
@@ -228,7 +230,7 @@ theorem liouville_lemma1' (f : (Fin n → ℤ) → ℝ)
       simpa using h
 
 /-- Liouville's theorem for two neighboring points: for a harmonic $f$, set
-$g(x) = f(x + e) - f(x)$ then $g$ satisfies the condition for lemma 1, and thus constantly zero,
+$g(x) = f(x + e) - f(x)$, then $g$ satisfies the condition for lemma 1, and thus constantly zero,
 showing $f(x + e) = f(x)$. -/
 theorem liouville_neighbor (f : (Fin n → ℤ) → ℝ)
     (hharmonic : ∀ x, ∑ k, (f (x - Pi.single k 1) - f x) + ∑ k, (f (x + Pi.single k 1) - f x) = 0)
@@ -321,8 +323,8 @@ theorem isValidCircuit_zero [NeZero n] {pot : (Fin n → ℤ) → ℝ} :
       bddAbove := ⟨c, by simp⟩
     }
 
-/-- For any specific external current functions, the valid potential function is unique up to a
-constant. -/
+/-- For any specific external current functions, the valid potential function, if exists, is unique
+up to a constant. -/
 theorem isValidCircuit_unique [NeZero n] {cur : (Fin n → ℤ) → ℝ} {a b : (Fin n → ℤ) → ℝ}
     (ha : IsValidCircuit cur a) (hb : IsValidCircuit cur b) :
     ∃ c, a - b = fun _ ↦ c := by
@@ -341,7 +343,7 @@ theorem isValidCircuit_unique [NeZero n] {cur : (Fin n → ℤ) → ℝ} {a b : 
   · exact bddAbove_range_sub ha.bddAbove hb.bddBelow
 
 /-- Since the uniqueness of the potential function, the infinite grid question can be answered
-when ever a valid potential function is found. -/
+whenever a valid potential function is found. -/
 theorem equivResistance_eq [NeZero n] {x : Fin n → ℤ} {pot : (Fin n → ℤ) → ℝ}
     (h : IsValidCircuit (unitCur 0 - unitCur x) pot) :
     equivResistance x = some (pot x - pot 0) := by
@@ -363,23 +365,17 @@ asymptotic behavior in the next section.
 The construction of `φ` is obtained by taking an inverse Fourier transform of a certain function.
 The full derivation via Fourier transform is omitted, but you can get the general idea by the proof
 here.
+-/
 
+/-
 We compute the discrete Fourier transform of `unitCur 0`, then state the result using inverse
 Fourier transform to recover `unitCur 0`, which is a integral over a hypercube
 $$
-unitCur_0 (x_0, x_1,\cdot,x_{n-1}) =
-\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n \left(\cos \sum_i, x_i w_i \right) dw
+\varphi (x_0, x_1,\cdot,x_{n-1}) =
+\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n}
+\frac{1 - \cos \sum_i x_i w_i}{\sum_i 2 - 2\cos w_i} dw
 $$
-
-Then we define function `φ` also as a similar inverse Fourier transform
-$$
-\phi (x_0, x_1,\cdot,x_{n-1}) =
-\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n
-\frac{1 - \cos \sum_i, x_i w_i}{\sum_i 2 - 2\cos w_i} dw
-$$
-
 -/
-
 theorem fourier_unitCur (x : Fin n → ℤ) :
     unitCur 0 x = (2 * π)⁻¹ ^ n *
     ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π), cos (∑ i, x i * w i) := by
@@ -440,6 +436,15 @@ theorem fourier_unitCur (x : Fin n → ℤ) :
     push_cast
     ring
 
+/-
+Then we define function `φ` also as a similar inverse Fourier transform
+$$
+\varphi (x_0, x_1,\cdot,x_{n-1}) =
+\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n}
+\frac{1 - \cos \sum_i x_i w_i}{\sum_i 2 - 2\cos w_i} dw
+$$
+
+-/
 def φ (x : Fin n → ℤ) : ℝ :=
   (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
     (1 - Real.cos (∑ i, x i * w i)) / ∑ i, (2 - 2 * Real.cos (w i))
@@ -467,6 +472,10 @@ theorem φ_nonneg (x : Fin n → ℤ) : 0 ≤ φ x := by
   · simpa using cos_le_one _
   · refine Finset.sum_nonneg fun i _ ↦ ?_
     simpa using cos_le_one _
+
+theorem bddBelow_φ : BddBelow (Set.range <| φ (n := n)) := by
+  use 0
+  simpa [mem_lowerBounds] using φ_nonneg
 
 @[simp]
 theorem φ_reflect (x : Fin n → ℤ) (i : Fin n) : φ (Function.update x i (-x i)) = φ x := by
@@ -594,14 +603,15 @@ theorem φ_single_perm (e e' : Fin n) (l : ℤ) :
     simp [p]
   rw [← this, φ_perm]
 
-theorem bddBelow_φ : BddBelow (Set.range <| φ (n := n)) := by
-  use 0
-  simpa [mem_lowerBounds] using φ_nonneg
+/-- Special case for swapping coordinates in the 2D case. -/
+theorem φ_swap (x y : ℤ) : φ ![x, y] = φ ![y, x] := by
+  rw [← φ_perm _ (Equiv.swap 0 1)]
+  simp
 
 /-!
 We should justify that the integral in `φ` actually makes sense. This is not trivial: the integrant
 has an unremovable singularity at 0. It turns out that this singularity is bounded, so you can
-either treat it as 0 using Lean's junk value, or remove the singularity from integration on paper.
+either treat it as 0 using Lean's junk value, or remove the singularity from integration.
 -/
 
 theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
@@ -642,7 +652,7 @@ theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
 
 /-!
 Lastly, we show that `φ` satisfies Kirchhoff's law for singleton unit current, making it an *almost*
-solution. As a corollary, we compute the value of `φ eᵢ` for unit vector `eᵢ` in `φ_off_center`
+solution. As a corollary, we compute the value of `φ eᵢ` for a unit vector `eᵢ` in `φ_off_center`
 using Kirchhoff's law and symmetry.
 -/
 
@@ -845,15 +855,15 @@ We show the asymptotic behavior for $n = 2$ next. The precise statement we want 
 function $g(x)$ defined below is bounded above and below
 
 $$
-g(x, y) = \phi(x, y) - \frac{1}{4 \pi} \log (x^2 + y^2) =
-\phi(x, y) - \frac{1}{2 \pi} \log \lVert (x, y) \rVert_2
+g(x, y) = \varphi(x, y) - \frac{1}{4 \pi} \log (x^2 + y^2) =
+\varphi(x, y) - \frac{1}{2 \pi} \log \lVert (x, y) \rVert_2
 $$
 
 (This assumes the junk value $\log 0 = 0$, but a single point isn't important for the global bound)
 
 We show this using a chain of asymptotic equivalences:
 $$
-\phi(x, y)
+\varphi(x, y)
 \sim \iint_{[-\pi,\pi]^2} \frac{1-\cos (x u + y v)}{4 - (2 \cos u + 2 \cos v)}du dv
 $$
 $$
@@ -869,8 +879,8 @@ $$
 $$
 \sim \log \lVert (x, y) \rVert_2
 $$
-where each equivalence means bounded difference between two sides after multiplying by certain
-factors. The main idea here is that the logarithmic growth comes from the integration around the
+where each equivalence means bounded difference between two sides after multiplying by some
+constants. The main idea here is that the logarithmic growth comes from the integration around the
 singularity, so we can carve out a small disk (a unit disk will suffice), and change to polar
 coordinates. The last equivalence is a property of Bessel function, which is proved at
 `asymptotic_bessel`.
@@ -1198,7 +1208,7 @@ theorem φ_2d_sub_log_bounded :
 /-!
 Finally, we turn to the 1D case. We can direclty compute using induction that
 $$
-\phi (x) = \frac{1}{2} |x|
+\varphi (x) = \frac{1}{2} |x|
 $$
 and thus `φ` grows linearly in 1D case.
 -/
@@ -1239,7 +1249,7 @@ theorem φ_1d' (x : Fin 1 → ℤ) : φ x = 2⁻¹ * |x 0| := by
 
 ## 5. Solution to `IsValidCircuit`
 
-In this section, we will prove
+In this section, we prove
 `IsValidCircuit (unitCur a - unitCur b) (fun x ↦ φ (x - a) - φ (x - b))`. The two conditions
 for this are now within reach:
 - Because of linarity, Kirchhoff's law holds for any linear combination of `φ`.
@@ -1444,16 +1454,16 @@ theorem equivResistance_off_center [NeZero n] (e : Fin n) :
   rw [equivResistance_eq_two_mul_φ, φ_off_center, mul_inv, ← mul_assoc, mul_inv_cancel₀ (by simp),
     one_mul]
 
-/-
+/-!
 
 ## 6. Calculation for the 2D case
 
-In this section, we deriv more closed-form results for the 2D case, and answers the original
+In this section, we derive more closed-form results for the 2D case, and answers the original
 nerd sniping question.
 
 The key result is that `φ ![x, x]` along the diagonal line has a simple formula
 $$
-\phi(x, x) = \frac{1}{\pi}\left(1 + \frac{1}{3} + \frac{1}{5} + \cdots + \frac{1}{2x - 1}\right)
+\varphi(x, x) = \frac{1}{\pi}\left(1 + \frac{1}{3} + \frac{1}{5} + \cdots + \frac{1}{2x - 1}\right)
 $$
 
 Combining with the known value `φ ![1, 0] = 4⁻¹`, it is possible to calculate any `φ ![x, y]`
@@ -1463,6 +1473,10 @@ To calculate the integral on the diagonal line, we expand the integral domain fr
 to the diamond $(2\pi, 0) - (0, 2\pi) - (-2\pi, 0) - (0, -2π)$. Because of the periodicity of
 the integrand, this simply doubles the resulting value. We then change the variable to rotate
 it by 45 degrees. The new integral can have variables separated, allowing us to calculate it.
+
+This process is unfortunately tedious to formalize. We start with defining the `diamond` region,
+as well as the four triangles `triangleU`, `triangleD`, `triangleL`, and `triangleR` between the
+diamand and the square.
 -/
 
 def triangleU : Set (ℝ × ℝ) := {p | π ≤ p.2 ∧ p.1 + p.2 ≤ 2 * π ∧ p.2 - p.1 ≤ 2 * π}
@@ -1472,6 +1486,7 @@ def triangleR : Set (ℝ × ℝ) := {p | π ≤ p.1 ∧ p.1 + p.2 ≤ 2 * π ∧
 def diamond : Set (ℝ × ℝ) :=
   {p | p.1 + p.2 ≤ 2 * π ∧ -2 * π ≤ p.1 + p.2 ∧ p.2 - p.1 ≤ 2 * π ∧ -2 * π ≤ p.2 - p.1}
 
+/-- `diamand` is the union of the square and the four triangles. -/
 theorem diamond_decomp :
     diamond =
     triangleU ∪ triangleD ∪ triangleL ∪ triangleR ∪ (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) := by
@@ -1521,6 +1536,7 @@ theorem diamond_decomp :
       simp only [diamond, Set.mem_setOf_eq]
       refine ⟨?_, ?_, ?_, ?_⟩ <;> linarith
 
+/-- The square is the union of the same four triangles after translation. -/
 theorem square_comp :
     (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) =
     (MeasurableEquiv.addRight (0, -2 * π) '' triangleU) ∪
@@ -1579,6 +1595,8 @@ theorem square_comp :
         Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq] at hp
       rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc]
       refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩⟩ <;> linarith
+
+/-! We show that the integration in `φ` makes sense in all these regions. -/
 
 theorem φ_integrable_mapU (x : Fin 2 → ℤ) :
     IntegrableOn (fun w ↦ (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)))
@@ -1664,6 +1682,8 @@ theorem φ_integrable_diamond (x : Fin 2 → ℤ) :
   refine IntegrableOn.union ?_ (φ_integrable_R x)
   refine IntegrableOn.union ?_ (φ_integrable_L x)
   exact IntegrableOn.union (φ_integrable_U x) (φ_integrable_D x)
+
+/-! We then show there is no overlap between regions. -/
 
 theorem disjoint_U_D : AEDisjoint volume triangleU triangleD := by
   apply Disjoint.aedisjoint
@@ -1871,6 +1891,8 @@ theorem disjoint_map_L_R : AEDisjoint volume (MeasurableEquiv.addRight (2 * π, 
   · simp only
     linarith
 
+/-! Now we can rewrite `φ` as a integral on the diamond. -/
+
 theorem φ_2d_diamond (x : Fin 2 → ℤ) :
     φ x = (8 * π ^ 2)⁻¹ * ∫ w in diamond,
     (1 - cos (x 0 * w.1 + x 1 * w.2)) / (4 - (2 * cos w.1 + 2 * cos w.2)) := by
@@ -1923,6 +1945,8 @@ theorem φ_2d_diamond (x : Fin 2 → ℤ) :
     congrm ∫ p in _, (1 - ?_) / _
     rw [mul_sub, ← add_sub_right_comm, Real.cos_sub_int_mul_two_pi]
 
+/-! We perform the rotation, and finalize the result -/
+
 def diamondRotate : (ℝ × ℝ) →L[ℝ] (ℝ × ℝ) where
   toFun p := (p.1 + p.2, p.1 - p.2)
   map_add' a b := by ext <;> simp <;> ring
@@ -1955,6 +1979,7 @@ theorem diamond_eq_map : diamond = diamondRotate '' (Set.Icc (-π) π ×ˢ Set.I
   · intro hp
     grind
 
+/-- The inner integration that we need to calculate. -/
 theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
     ∫ (x : ℝ) in Set.Icc (-π) π, (2 - 2 * a * cos x)⁻¹ = π / √(1 - a ^ 2) := by
   have h1a : 1 + a ≠ 0 := by grind
@@ -2097,6 +2122,7 @@ theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
   rw [tendsto_nhds_unique htendsto htendsto']
   ring
 
+/-- A sum-of-sin formula to be used soon. -/
 theorem sum_sin (n : ℕ) (x : ℝ) :
     ∑ k ∈ Finset.range n, sin ((2 * k + 1) * x) = (1 - cos (n * (2 * x))) / (2 * sin x) := by
   by_cases hx : sin x = 0
@@ -2119,6 +2145,7 @@ theorem sum_sin (n : ℕ) (x : ℝ) :
   simp only [Nat.cast_zero, zero_mul, cos_zero]
   ring_nf
 
+/-- Formula for `φ` on the diagonal in the 2D case. -/
 theorem φ_2d_diagonal (n : ℕ) : φ (![n, n]) = π⁻¹ * ∑ k ∈ Finset.range n, (2 * k + 1 : ℝ)⁻¹ := by
   rw [φ_2d_diamond]
   obtain hintegrable := φ_integrable_diamond ![n, n]
@@ -2195,6 +2222,8 @@ theorem φ_2d_diagonal (n : ℕ) : φ (![n, n]) = π⁻¹ * ∑ k ∈ Finset.ran
     Real.cos_nat_mul_two_pi_add_pi, smul_eq_mul]
   field
 
+/-! With the formula ready, we can calculate `φ` at any given point. -/
+
 theorem φ_2d_1_0 : φ ![1, 0] = 4⁻¹ := by
   convert φ_off_center (0 : Fin 2)
   · ext i; fin_cases i <;> simp
@@ -2213,10 +2242,6 @@ theorem φ_2d_3_3 : φ ![3, 3] = π⁻¹ * (23 / 15) := by
   simp [Finset.range]
   norm_num
 
-theorem φ_swap (x y : ℤ) : φ ![x, y] = φ ![y, x] := by
-  rw [← φ_perm _ (Equiv.swap 0 1)]
-  simp
-
 theorem φ_2d_2_1 : φ ![2, 1] = π⁻¹ * 2 - 4⁻¹ := by
   obtain h := φ_kirchhoff ![1, 1]
   have hsum (f : Fin 2 → ℝ) : ∑ k, f k = f 0 + f 1 := by simp
@@ -2230,3 +2255,9 @@ theorem φ_2d_2_1 : φ ![2, 1] = π⁻¹ * 2 - 4⁻¹ := by
   rw [show unitCur 0 ![1, 1] = 0 by simp [unitCur]] at h
   apply mul_right_cancel₀ (show (2 : ℝ) ≠ 0 by simp)
   linear_combination h
+
+/-! Finally, let's answer the original question: the equivalent resistance is $\4/pi - 1/2$ -/
+
+theorem equivResistance_2_1 : equivResistance ![2, 1] = some (π⁻¹ * 4 - 2⁻¹) := by
+  rw [equivResistance_eq_two_mul_φ, φ_2d_2_1]
+  congrm some $(by ring)
