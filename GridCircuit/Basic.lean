@@ -371,7 +371,7 @@ The full derivation via Fourier transform is omitted, but you can get the genera
 here.
 -/
 
-/-
+/--
 We compute the discrete Fourier transform of `unitCur 0`, then state the result using inverse
 Fourier transform to recover `unitCur 0`, which is a integral over a hypercube
 $$
@@ -440,7 +440,7 @@ theorem fourier_unitCur (x : Fin n → ℤ) :
     push_cast
     ring
 
-/-
+/--
 Then we define function `φ` also as a similar inverse Fourier transform
 $$
 \varphi (x_0, x_1,\cdot,x_{n-1}) =
@@ -2260,7 +2260,7 @@ theorem φ_2d_2_1 : φ ![2, 1] = π⁻¹ * 2 - 4⁻¹ := by
   apply mul_right_cancel₀ (show (2 : ℝ) ≠ 0 by simp)
   linear_combination h
 
-/-! Finally, let's answer the original question: the equivalent resistance is $\4/pi - 1/2$ -/
+/-! Finally, let's answer the original question: the equivalent resistance is $4/\pi - 1/2$ -/
 
 theorem equivResistance_2_1 : equivResistance ![2, 1] = some (π⁻¹ * 4 - 2⁻¹) := by
   rw [equivResistance_eq_two_mul_φ, φ_2d_2_1]
