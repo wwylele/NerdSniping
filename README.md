@@ -1,13 +1,7 @@
-# grid-circuit
+# Nerd Sniping - the Infinite Grid of Resistors
 
-## GitHub configuration
+[![Documentation](https://img.shields.io/badge/Documentation-passing-green)](https://wwylele.github.io/NerdSniping/docs/GridCircuit/Basic.html)
 
-To set up your new GitHub repository, follow these steps:
+This is a formalization in Lean of [xkcd's "nerd sniping" question](https://xkcd.com/356/)
 
-* Under your repository name, click **Settings**.
-* In the **Actions** section of the sidebar, click "General".
-* Check the box **Allow GitHub Actions to create and approve pull requests**.
-* Click the **Pages** section of the settings sidebar.
-* In the **Source** dropdown menu, select "GitHub Actions".
-
-After following the steps above, you can remove this section from the README file.
+![I first saw this problem on the Google Labs Aptitude Test.  A professor and I filled a blackboard without getting anywhere.  Have fun.](https://imgs.xkcd.com/comics/nerd_sniping.png)
