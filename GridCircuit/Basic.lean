@@ -375,9 +375,8 @@ here.
 We compute the discrete Fourier transform of `unitCur 0`, then state the result using inverse
 Fourier transform to recover `unitCur 0`, which is a integral over a hypercube
 $$
-\varphi (x_0, x_1,\cdot,x_{n-1}) =
-\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n}
-\frac{1 - \cos \sum_i x_i w_i}{\sum_i 2 - 2\cos w_i} dw
+\varphi (x_0, x_1,\cdots,x_{n-1}) =
+\frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n} \left(\cos \sum_i x_i w_i\right) dw
 $$
 -/
 theorem fourier_unitCur (x : Fin n → ℤ) :
@@ -443,7 +442,7 @@ theorem fourier_unitCur (x : Fin n → ℤ) :
 /--
 Then we define function `φ` also as a similar inverse Fourier transform
 $$
-\varphi (x_0, x_1,\cdot,x_{n-1}) =
+\varphi (x_0, x_1,\cdots,x_{n-1}) =
 \frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n}
 \frac{1 - \cos \sum_i x_i w_i}{\sum_i 2 - 2\cos w_i} dw
 $$
