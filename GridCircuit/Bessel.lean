@@ -1,4 +1,6 @@
-import Mathlib
+module
+
+public import Mathlib
 
 -- Whole file from Aristotle
 
@@ -307,7 +309,7 @@ lemma expression_rewrite (x : ℝ) (hx : 1 ≤ x) :
           fun_prop (disch := norm_num);
       rw [ pull_const ] ; rw [ h_split, h_split_integral ] ; norm_num [ hx ] ; ring;
 
-theorem asymptotic_bessel :
+public theorem asymptotic_bessel :
     (fun x ↦ ((2 * π)⁻¹ * ∫ r in 0..x, ∫ θ in -π..π, (1 - cos (r * cos θ)) / r) - log x)
     =O[atTop] (1 : ℝ → ℝ) := by
   -- By expression_rewrite, the expression equals C₁ - ∫₁ˣ J₀(r)/r dr for x ≥ 1.

@@ -1,3 +1,5 @@
-import GridCircuit.Basic
-import GridCircuit.Bessel
-import GridCircuit.Misc
+module
+
+public import GridCircuit.Basic
+public import GridCircuit.Bessel
+public import GridCircuit.Misc
