@@ -2264,3 +2264,202 @@ theorem φ_2d_2_1 : φ ![2, 1] = π⁻¹ * 2 - 4⁻¹ := by
 theorem equivResistance_2_1 : equivResistance ![2, 1] = some (π⁻¹ * 4 - 2⁻¹) := by
   rw [equivResistance_eq_two_mul_φ, φ_2d_2_1]
   congrm some $(by ring)
+
+structure φTable where
+  data : List (List (ℚ × ℚ))
+  length_eq (i : ℕ) (h : i < data.length) : data[i].length = i + 1
+  eq_φ (i : ℕ) (hi : i < data.length) (j : ℕ) (hj : j < data[i].length) :
+    (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) data[i][j] = φ ![i, j]
+
+set_option maxHeartbeats 800000 in
+def growφTable (input : φTable) : φTable :=
+  match hl : input.data.length with
+  | 0 =>
+    {
+      data := input.data ++ [[(0, 0)]]
+      length_eq i h := by
+        have h : i ≤ input.data.length := by simpa using h
+        rcases lt_or_eq_of_le h with h | h
+        · rw [List.getElem_append_left h]
+          exact input.length_eq i h
+        · rw [List.getElem_append_right h.symm.le]
+          simpa [hl] using h
+      eq_φ i hi j hj := by
+        have hi : i = 0 := by simpa [hl] using hi
+        have hdata : input.data = [] := List.eq_nil_iff_length_eq_zero.mpr hl
+        have hj : j = 0 := by simpa [hi, hdata] using hj
+        simp [hi, hj, hdata, show ![(0 : ℤ), 0] = 0 by simp]
+    }
+  | 1 =>
+    {
+      data := input.data ++ [[(0, 4⁻¹), (1, 0)]]
+      length_eq i h := by
+        have h : i ≤ input.data.length := by simpa using h
+        rcases lt_or_eq_of_le h with h | h
+        · rw [List.getElem_append_left h]
+          exact input.length_eq i h
+        · rw [List.getElem_append_right h.symm.le]
+          simpa [hl] using h
+      eq_φ i hi j hj := by
+        rw [List.length_append, List.length_singleton, Nat.lt_add_one_iff_lt_or_eq] at hi
+        rcases hi with hi | hi
+        · rw [List.getElem_append_left hi] at hj
+          suffices (input.data ++ [[(0, 4⁻¹), (1, 0)]])[i][j] = input.data[i][j] by
+            rw [this]
+            exact input.eq_φ i hi j hj
+          congrm ?_[j]
+          rw [List.getElem_append_left hi]
+        · rw [List.getElem_append_right hi.symm.le] at hj
+          have hj : j ≤ 1 := by simpa [hl, hi] using hj
+          have : (input.data ++ [[(0, 4⁻¹), (1, 0)]])[i][j] =
+              [(0, 4⁻¹), (1, 0)][j]'(by simpa using hj) := by
+            congrm ?_[j]'_
+            rw [List.getElem_append_right hi.symm.le]
+            simp [hi]
+          rw [this]
+          rw [hl] at hi
+          interval_cases j
+          · simp [hi, φ_2d_1_0]
+          · rw [hi, φ_2d_diagonal 1]
+            simp
+    }
+  | n + 2 =>
+    {
+      data := input.data ++ [List.ofFn fun (j : Fin (n + 3)) ↦
+        if hj0 : j.val = 0 then
+          haveI : 0 < input.data[n + 1].length := by
+            simp [input.length_eq (n + 1)]
+          haveI : 1 < input.data[n + 1].length := by
+            simp [input.length_eq (n + 1)]
+          haveI : 0 < input.data[n].length := by
+            simp [input.length_eq n]
+          4 * input.data[n + 1][0] - 2 * input.data[n + 1][1] - input.data[n][0]
+        else if hj2 : j.val = n + 2 then
+          haveI : n + 1 < input.data[n + 1].length := by
+            simp [input.length_eq (n + 1)]
+          input.data[n + 1][n + 1] + ((2 * (n + 2 : ℕ) + 1 : ℚ)⁻¹, 0)
+        else if hj1 : j.val = n + 1 then
+          haveI : j.val < input.data[n + 1].length := by
+            simp [input.length_eq (n + 1), hj1]
+          haveI : j.val - 1 < input.data[n + 1].length := by
+            simp [input.length_eq (n + 1), hj1]
+          2 * input.data[n + 1][j.val] - input.data[n + 1][j.val - 1]
+        else
+          haveI : j.val < input.data[n + 1].length := by
+            rw [input.length_eq (n + 1)]
+            grind
+          haveI : j.val + 1 < input.data[n + 1].length := by
+            rw [input.length_eq (n + 1)]
+            grind
+          haveI : j.val - 1 < input.data[n + 1].length := by
+            rw [input.length_eq (n + 1)]
+            grind
+          haveI : j.val < input.data[n].length := by
+            rw [input.length_eq n]
+            grind
+          4 * input.data[n + 1][j.val] - input.data[n + 1][j.val - 1]
+            - input.data[n + 1][j.val + 1] - input.data[n][j.val]
+      ]
+      length_eq i h := by
+        have h : i ≤ input.data.length := by simpa using h
+        rcases lt_or_eq_of_le h with h | h
+        · rw [List.getElem_append_left h]
+          exact input.length_eq i h
+        · rw [List.getElem_append_right h.symm.le]
+          have hl : input.data.length = n + 1 + 1 := by simpa using hl
+          simpa [hl] using h.symm
+      eq_φ i hi j hj := by
+        rw [List.length_append, List.length_singleton, Nat.lt_add_one_iff_lt_or_eq] at hi
+        rcases hi with hi | hi
+        · rw [List.getElem_append_left hi] at hj
+          have (p : List (ℚ × ℚ)) (hi' : i < (input.data ++ [p]).length)
+              (hj : j < (input.data ++ [p])[i].length):
+              (input.data ++ [p])[i][j] = input.data[i][j] := by
+            congrm ?_[j]'_
+            rw [List.getElem_append_left hi]
+          rw [this]
+          exact input.eq_φ i hi j hj
+        · rw [List.getElem_append_right hi.symm.le] at hj
+          have hj : j ≤ n + 1 + 1 := by simpa using hj
+          have (p : List (ℚ × ℚ)) (hi' : i < (input.data ++ [p]).length)
+              (hj : j < (input.data ++ [p])[i].length) (hj' : j < p.length):
+              (input.data ++ [p])[i][j] = p[j] := by
+            congrm ?_[j]'_
+            rw [List.getElem_append_right hi.symm.le]
+            simp [hi]
+          rw [this _ _ _ (by simpa using hj)]
+          rw [List.getElem_ofFn]
+          simp only [Nat.cast_ofNat, Nat.cast_add, dite_eq_ite, Nat.succ_eq_add_one, Nat.reduceAdd]
+          split
+          next hj0 =>
+            have : 0 < input.data[n + 1].length := by
+              simp [input.length_eq (n + 1)]
+            have : 1 < input.data[n + 1].length := by
+              simp [input.length_eq (n + 1)]
+            have : 0 < input.data[n].length := by
+              simp [input.length_eq n]
+            suffices
+                4 * (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][0] -
+                2 * (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][1] -
+                (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n][0] = φ ![i, j] by
+              simp at this ⊢
+              linear_combination this
+            simp_rw [input.eq_φ]
+            sorry
+          next hj0 =>
+          split
+          next hj2 =>
+            have : n + 1 < input.data[n + 1].length := by
+              simp [input.length_eq (n + 1)]
+            suffices (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][n + 1] +
+                (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) ((2 * (n + 2 : ℕ) + 1 : ℚ)⁻¹, 0) = φ ![i, j] by
+              simp at this ⊢
+              linear_combination this
+            simp_rw [input.eq_φ]
+            sorry
+          next hj2 =>
+          split
+          next hj1 =>
+            haveI : j < input.data[n + 1].length := by
+              simp [input.length_eq (n + 1), hj1]
+            haveI : j - 1 < input.data[n + 1].length := by
+              simp [input.length_eq (n + 1), hj1]
+            suffices 2 * (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][j] -
+                (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][j - 1] = φ ![i, j] by
+              simp at this ⊢
+              linear_combination this
+            simp_rw [input.eq_φ]
+            sorry
+          next hj1 =>
+            haveI : j < input.data[n + 1].length := by
+              rw [input.length_eq (n + 1)]
+              grind
+            haveI : j + 1 < input.data[n + 1].length := by
+              rw [input.length_eq (n + 1)]
+              grind
+            haveI : j - 1 < input.data[n + 1].length := by
+              rw [input.length_eq (n + 1)]
+              grind
+            haveI : j < input.data[n].length := by
+              rw [input.length_eq n]
+              grind
+            suffices 4 * (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][j] -
+                (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][j - 1] -
+                (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][j + 1] -
+                (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n][j] = φ ![↑i, ↑j] by
+              simp at this ⊢
+              linear_combination this
+            simp_rw [input.eq_φ]
+            sorry
+    }
+
+def getφTable (length : ℕ) : φTable :=
+  match length with
+  | 0 =>
+    {
+      data := []
+      length_eq i h := by simp at h
+      eq_φ i hi j hj := by simp at hi
+    }
+  | n + 1 =>
+    growφTable (getφTable n)
