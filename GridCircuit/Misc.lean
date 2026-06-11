@@ -60,21 +60,14 @@ lemma abs_sin_sum_le {ι : Type*} (s : Finset ι) (a : ι → ℝ) :
     apply (abs_sin_add_le _ _).trans
     grw [ih]
 
--- Aristotle
 lemma abs_sin_nat_mul_le (m : ℕ) (y : ℝ) :
     |sin (m * y)| ≤ m * |sin y| := by
   induction m with
   | zero => simp
   | succ n ih =>
-    simp only [Nat.cast_add, Nat.cast_one, add_mul, one_mul, sin_add]
-    rw [abs_le]
-    constructor
-    · cases abs_cases (Real.sin y)
-      <;> nlinarith [abs_le.mp ‹_›, abs_le.mp (Real.abs_cos_le_one ((↑‹ℕ› : ℝ) * y)),
-        abs_le.mp (Real.abs_cos_le_one y) ]
-    · cases abs_cases (Real.sin y)
-      <;> nlinarith [abs_le.mp ‹_›, abs_le.mp (Real.abs_cos_le_one ((↑‹ℕ› : ℝ) * y)),
-        abs_le.mp (Real.abs_cos_le_one y) ]
+    push_cast
+    rw [add_one_mul, add_one_mul]
+    grw [abs_sin_add_le, ih]
 
 
 theorem sin_inequality {n : ℕ} (x : Fin n → ℤ) (y : Fin n → ℝ) :
@@ -119,32 +112,31 @@ theorem one_sub_cos_le (x : ℝ) : (1 - cos x) ≤ x ^ 2 / 2 := by
   grw [← two_mul_one_sub_cos_le]
   simp
 
-
--- Aristotle
 theorem cofinite_int_le_cobounded_real :
     Filter.map (fun (x : Fin 2 → ℤ) ↦ ((x 0 : ℝ), (x 1 : ℝ))) cofinite ≤
     Bornology.cobounded (ℝ × ℝ) := by
-  refine Filter.map_le_iff_le_comap.mpr ?_;
-  have h_preimage_finite : ∀ (S : Set (ℝ × ℝ)),
-      Bornology.IsBounded S → Set.Finite {x : Fin 2 → ℤ | ((x 0 : ℝ), (x 1 : ℝ)) ∈ S} := by
-    intro S hS;
-    -- Since S is bounded, there exists some R such that for all (x, y) in S, x^2 + y^2 ≤ R^2.
-    obtain ⟨R, hR⟩ : ∃ R : ℝ, ∀ p ∈ S, p.1^2 + p.2^2 ≤ R^2 := by
-      obtain ⟨ R, hR ⟩ := hS.exists_pos_norm_le;
-      norm_num [ Prod.norm_def ] at hR;
-      exact ⟨ R + R, fun p hp =>
-        by nlinarith [ abs_le.mp ( hR.2 _ _ hp |>.1 ), abs_le.mp ( hR.2 _ _ hp |>.2 ) ] ⟩;
-    refine Set.Finite.subset ( Set.finite_Icc ( -⌈R^2⌉₊ : Fin 2 → ℤ ) ⌈R^2⌉₊ ) ?_;
+  have hfinite (S : Set (ℝ × ℝ)) (hS : Bornology.IsBounded S):
+      {x : Fin 2 → ℤ | ((x 0 : ℝ), (x 1 : ℝ)) ∈ S}.Finite := by
+    obtain ⟨c, hc0, hc⟩ := hS.exists_pos_norm_le
+    apply (Set.finite_Icc (⌈-c⌉ : Fin 2 → ℤ) ⌊c⌋).subset
     intro x hx
-    constructor <;> intro i <;> fin_cases i <;> norm_num <;>
-      exact Int.le_of_lt_add_one <|
-      by { rw [ ← @Int.cast_lt ℝ ] ; push_cast ; nlinarith [ Nat.le_ceil ( R ^ 2 ), hR _ hx ] } ;
-  intro s hs
-  simp only [mem_cofinite]
-  obtain ⟨ t, ht, hts ⟩ := hs
-  specialize h_preimage_finite tᶜ
-  simp only [Bornology.isBounded_compl_iff, Fin.isValue, Set.mem_compl_iff] at h_preimage_finite
-  exact Set.Finite.subset ( h_preimage_finite ht ) fun x hx => by contrapose! hx; aesop;
+    rw [Set.mem_setOf_eq] at hx
+    specialize hc _ hx
+    rw [Prod.norm_def, max_le_iff, norm_eq_abs, norm_eq_abs, abs_le, abs_le] at hc
+    rw [← Set.pi_univ_Icc, Set.mem_univ_pi]
+    intro j
+    suffices -c ≤ x j ∧ x j ≤ c by simpa [Int.le_floor, Int.ceil_le]
+    fin_cases j
+    · exact hc.1
+    · exact hc.2
+  refine Filter.map_le_iff_le_comap.mpr fun s hs ↦ ?_;
+  rw [mem_cofinite]
+  obtain ⟨t, ht, hts⟩ := hs
+  specialize hfinite tᶜ
+  simp only [Bornology.isBounded_compl_iff, Set.mem_compl_iff] at hfinite
+  refine (hfinite ht).subset fun x hx ↦ ?_
+  contrapose! hx
+  aesop
 
 -- Aristotle
 theorem map_polarCoord_eq_cobounded :
