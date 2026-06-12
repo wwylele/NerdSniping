@@ -446,7 +446,6 @@ $$
 \frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n}
 \frac{1 - \cos \sum_i x_i w_i}{\sum_i 2 - 2\cos w_i} dw
 $$
-
 -/
 def φ (x : Fin n → ℤ) : ℝ :=
   (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
@@ -519,6 +518,24 @@ theorem φ_reflect (x : Fin n → ℤ) (i : Fin n) : φ (Function.update x i (-x
   congr with j
   · by_cases h : j = i <;> simp [f, h]
   · by_cases h : j = i <;> simp [f, h]
+
+@[simp]
+theorem φ_neg_0 (x y : ℤ) : φ ![-x, y] = φ ![x, y] := by
+  rw [← φ_reflect _ 0]
+  congrm φ ?_
+  ext i
+  fin_cases i
+  · simp
+  · simp
+
+@[simp]
+theorem φ_neg_1 (x y : ℤ) : φ ![x, -y] = φ ![x, y] := by
+  rw [← φ_reflect _ 1]
+  congrm φ ?_
+  ext i
+  fin_cases i
+  · simp
+  · simp
 
 @[simp]
 theorem φ_neg (x : Fin n → ℤ) : φ (-x) = φ x := by
@@ -711,10 +728,28 @@ theorem φ_kirchhoff [NeZero n] (x : Fin n → ℤ) :
   rw [integral_congr_ae (hcongr _)]
   rw [← fourier_unitCur]
 
+/-- A specialized version of `φ_kirchhoff` for 2D and not at the center. -/
+theorem φ_2d_kirchhoff_of_ne_zero (x y : ℤ) (hxy : x ≠ 0 ∨ y ≠ 0) :
+    4 * φ ![x, y] = φ ![x - 1, y] + φ ![x + 1, y] + φ ![x, y - 1] + φ ![x, y + 1] := by
+  obtain h := φ_kirchhoff ![x, y]
+  rw [unitCur, Pi.single_eq_of_ne (by contrapose! hxy; simpa using hxy)] at h
+  have hsum (f : Fin 2 → ℝ) : ∑ k, f k = f 0 + f 1 := by simp
+  have h0 : Pi.single 0 (1 : ℤ) = ![1, 0] := by ext i; fin_cases i <;> simp
+  have h1 : Pi.single 1 (1 : ℤ) = ![0, 1] := by ext i; fin_cases i <;> simp
+  simp_rw [hsum, h0, h1] at h
+  simp at h
+  linear_combination -h
+
 theorem φ_off_center (e : Fin n) : φ (Pi.single e 1) = (2 * n : ℝ)⁻¹ := by
   have : NeZero n := e.neZero
   apply eq_inv_of_mul_eq_one_right
   simpa [φ_single_perm _ 0, ← two_mul, unitCur, ← mul_assoc] using φ_kirchhoff (n := n) 0
+
+/-- A specialized version of `φ_off_center` for 2D. -/
+theorem φ_2d_1_0 : φ ![1, 0] = 4⁻¹ := by
+  convert φ_off_center (0 : Fin 2)
+  · ext i; fin_cases i <;> simp
+  · norm_num
 
 /-!
 
@@ -2225,53 +2260,21 @@ theorem φ_2d_diagonal (n : ℕ) : φ (![n, n]) = π⁻¹ * ∑ k ∈ Finset.ran
     Real.cos_nat_mul_two_pi_add_pi, smul_eq_mul]
   field
 
-/-! With the formula ready, we can calculate `φ` at any given point. -/
+/-! With the formula ready, we can calculate `φ` at any given point. In fact, we can write a
+recursive algorithm for this. -/
 
-theorem φ_2d_1_0 : φ ![1, 0] = 4⁻¹ := by
-  convert φ_off_center (0 : Fin 2)
-  · ext i; fin_cases i <;> simp
-  · norm_num
-
-theorem φ_2d_1_1 : φ ![1, 1] = π⁻¹ := by
-  simpa using φ_2d_diagonal 1
-
-theorem φ_2d_2_2 : φ ![2, 2] = π⁻¹ * (4 / 3) := by
-  convert! φ_2d_diagonal 2 using 1
-  simp [Finset.range]
-  norm_num
-
-theorem φ_2d_3_3 : φ ![3, 3] = π⁻¹ * (23 / 15) := by
-  convert! φ_2d_diagonal 3 using 1
-  simp [Finset.range]
-  norm_num
-
-theorem φ_2d_2_1 : φ ![2, 1] = π⁻¹ * 2 - 4⁻¹ := by
-  obtain h := φ_kirchhoff ![1, 1]
-  have hsum (f : Fin 2 → ℝ) : ∑ k, f k = f 0 + f 1 := by simp
-  have h0 : Pi.single 0 (1 : ℤ) = ![1, 0] := by ext i; fin_cases i <;> simp
-  have h1 : Pi.single 1 (1 : ℤ) = ![0, 1] := by ext i; fin_cases i <;> simp
-  have h2 : ![1, (1 : ℤ)] - ![1, 0] = ![0, 1] := by ext i; fin_cases i <;> simp
-  have h3 : ![1, (1 : ℤ)] - ![0, 1] = ![1, 0] := by ext i; fin_cases i <;> simp
-  have h4 : ![1, (1 : ℤ)] + ![0, 1] = ![1, 2] := by ext i; fin_cases i <;> simp
-  have h5 : ![1, (1 : ℤ)] + ![1, 0] = ![2, 1] := by ext i; fin_cases i <;> simp
-  simp_rw [hsum, h0, h1, h2, h3, h4, h5, φ_swap 0 1, φ_swap 1 2, φ_2d_1_0, φ_2d_1_1] at h
-  rw [show unitCur 0 ![1, 1] = 0 by simp [unitCur]] at h
-  apply mul_right_cancel₀ (show (2 : ℝ) ≠ 0 by simp)
-  linear_combination h
-
-/-! Finally, let's answer the original question: the equivalent resistance is $4/\pi - 1/2$ -/
-
-theorem equivResistance_2_1 : equivResistance ![2, 1] = some (π⁻¹ * 4 - 2⁻¹) := by
-  rw [equivResistance_eq_two_mul_φ, φ_2d_2_1]
-  congrm some $(by ring)
-
+/-- A triangular table that records value for `φ` -/
 structure φTable where
+  /-- All `φ` are rational combinations of `π` and `1`, so we use a rational vector to represent
+  the coefficents. -/
   data : List (List (ℚ × ℚ))
   length_eq (i : ℕ) (h : i < data.length) : data[i].length = i + 1
   eq_φ (i : ℕ) (hi : i < data.length) (j : ℕ) (hj : j < data[i].length) :
     (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) data[i][j] = φ ![i, j]
 
 set_option maxHeartbeats 800000 in
+-- For some reason this is really slow
+/-- Given a `φTable`, we can extend it by another column. -/
 def growφTable (input : φTable) : φTable :=
   match hl : input.data.length with
   | 0 =>
@@ -2337,7 +2340,7 @@ def growφTable (input : φTable) : φTable :=
         else if hj2 : j.val = n + 2 then
           haveI : n + 1 < input.data[n + 1].length := by
             simp [input.length_eq (n + 1)]
-          input.data[n + 1][n + 1] + ((2 * (n + 2 : ℕ) + 1 : ℚ)⁻¹, 0)
+          input.data[n + 1][n + 1] + (((2 * n + 3 : ℕ) : ℚ)⁻¹, 0)
         else if hj1 : j.val = n + 1 then
           haveI : j.val < input.data[n + 1].length := by
             simp [input.length_eq (n + 1), hj1]
@@ -2369,6 +2372,7 @@ def growφTable (input : φTable) : φTable :=
           have hl : input.data.length = n + 1 + 1 := by simpa using hl
           simpa [hl] using h.symm
       eq_φ i hi j hj := by
+        have hl : input.data.length = n + 2 := by simpa using hl
         rw [List.length_append, List.length_singleton, Nat.lt_add_one_iff_lt_or_eq] at hi
         rcases hi with hi | hi
         · rw [List.getElem_append_left hi] at hj
@@ -2405,18 +2409,26 @@ def growφTable (input : φTable) : φTable :=
               simp at this ⊢
               linear_combination this
             simp_rw [input.eq_φ]
-            sorry
+            rw [hj0, hi, hl]
+            push_cast
+            obtain h := φ_2d_kirchhoff_of_ne_zero (n + 1) 0 (by grind)
+            simp [show ∀ (n : ℤ), n + 1 + 1 = n + 2 by intro n; ring] at h
+            linear_combination h
           next hj0 =>
           split
           next hj2 =>
             have : n + 1 < input.data[n + 1].length := by
               simp [input.length_eq (n + 1)]
             suffices (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][n + 1] +
-                (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) ((2 * (n + 2 : ℕ) + 1 : ℚ)⁻¹, 0) = φ ![i, j] by
+                (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) (((2 * n + 3 : ℕ) : ℚ)⁻¹, 0) = φ ![i, j] by
               simp at this ⊢
               linear_combination this
             simp_rw [input.eq_φ]
-            sorry
+            rw [hj2, hi, hl, φ_2d_diagonal, φ_2d_diagonal]
+            conv_rhs =>
+              rw [show n + 2 = n + 1 + 1 by ring, Finset.sum_range_succ]
+            push_cast
+            ring
           next hj2 =>
           split
           next hj1 =>
@@ -2429,7 +2441,13 @@ def growφTable (input : φTable) : φTable :=
               simp at this ⊢
               linear_combination this
             simp_rw [input.eq_φ]
-            sorry
+            rw [hj1, hi, hl, Nat.add_sub_cancel]
+            push_cast
+            rw [← mul_left_inj' (show (2 : ℝ) ≠ 0 by simp)]
+            obtain h := φ_2d_kirchhoff_of_ne_zero (n + 1) (n + 1) (by grind)
+            simp [show ∀ (n : ℤ), n + 1 + 1 = n + 2 by intro n; ring,
+              φ_swap n (n + 1), φ_swap (n + 1) (n + 2)] at h
+            linear_combination h
           next hj1 =>
             haveI : j < input.data[n + 1].length := by
               rw [input.length_eq (n + 1)]
@@ -2450,9 +2468,15 @@ def growφTable (input : φTable) : φTable :=
               simp at this ⊢
               linear_combination this
             simp_rw [input.eq_φ]
-            sorry
+            rw [hi, hl]
+            have hj1' : 1 ≤ j := by grind
+            push_cast [hj1']
+            obtain h := φ_2d_kirchhoff_of_ne_zero (n + 1) j (by grind)
+            simp [show ∀ (n : ℤ), n + 1 + 1 = n + 2 by intro n; ring] at h
+            linear_combination h
     }
 
+/-- Compute `getφTable` of a specific size. -/
 def getφTable (length : ℕ) : φTable :=
   match length with
   | 0 =>
@@ -2463,3 +2487,65 @@ def getφTable (length : ℕ) : φTable :=
     }
   | n + 1 =>
     growφTable (getφTable n)
+
+@[simp]
+theorem length_getφTable (length : ℕ) : (getφTable length).data.length = length := by
+  induction length with
+  | zero => simp [getφTable]
+  | succ n ih =>
+    rw [getφTable, growφTable]
+    grind
+
+/-- Compute `φ` at any point in the first quadrant. -/
+def computeφ (x y : ℕ) : ℚ × ℚ :=
+  if h : x ≤ y then
+    ((getφTable (y + 1)).data[y]'(by simp))[x]'
+      (h.trans_lt (by simp [(getφTable (y + 1)).length_eq]))
+  else
+    ((getφTable (x + 1)).data[x]'(by simp))[y]'
+      ((lt_of_not_ge h).trans (by simp [(getφTable (x + 1)).length_eq]))
+
+theorem computeφ_eq (x y : ℕ) :
+    (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) (computeφ x y) = φ ![x, y] := by
+  by_cases h : x ≤ y
+  · simp only [computeφ, h, ↓reduceDIte, (getφTable (y + 1)).eq_φ]
+    exact φ_swap y x
+  · simp only [computeφ, h, ↓reduceDIte, (getφTable (x + 1)).eq_φ]
+
+/-! Now we can verify the value of `φ` at any point in the first quadrant with just kernel
+reduction. -/
+
+theorem φ_2d_1_1 : φ ![1, 1] = π⁻¹ := by
+  suffices computeφ 1 1 = (1, 0) by
+    simpa [this] using (computeφ_eq 1 1).symm
+  decide
+
+theorem φ_2d_2_2 : φ ![2, 2] = (4 / 3) * π⁻¹ := by
+  suffices computeφ 2 2 = (4 / 3, 0) by
+    simpa [this] using (computeφ_eq 2 2).symm
+  decide +kernel
+
+theorem φ_2d_3_3 : φ ![3, 3] = (23 / 15) * π⁻¹ := by
+  suffices computeφ 3 3 = (23 / 15, 0) by
+    simpa [this] using (computeφ_eq 3 3).symm
+  decide +kernel
+
+theorem φ_2d_2_1 : φ ![2, 1] = 2 * π⁻¹ - 4⁻¹ := by
+  suffices computeφ 2 1 = (2, -4⁻¹) by
+    simpa [this, ← sub_eq_add_neg] using (computeφ_eq 2 1).symm
+  decide +kernel
+
+theorem φ_2d_42_7 : φ ![42, 7] =
+    76593647770027443784355182739895062090786294026 / 200507537800595025 * π⁻¹ -
+    486376034966331052956526218433 / 4 := by
+  suffices computeφ 42 7 =
+      (76593647770027443784355182739895062090786294026 / 200507537800595025,
+      -486376034966331052956526218433 / 4) by
+    simpa [this, ← sub_eq_add_neg, neg_div] using (computeφ_eq 42 7).symm
+  decide +kernel
+
+/-! Finally, let's answer the original question: the equivalent resistance is $4/\pi - 1/2$ -/
+
+theorem equivResistance_2_1 : equivResistance ![2, 1] = some (4 * π⁻¹ - 2⁻¹) := by
+  rw [equivResistance_eq_two_mul_φ, φ_2d_2_1]
+  congrm some $(by ring)
