@@ -29,27 +29,30 @@ theorem bddAbove_range_sub {α : Type*} {a b : α → ℝ} (ha : BddAbove (Set.r
   have hb : ∀ (x : α), cb ≤ b x := by simpa [mem_lowerBounds] using hb
   exact fun x ↦ sub_le_sub (ha x) (hb x)
 
-theorem Pi.intCast_single {n : ℕ} (a : Fin n) (b : ℤ) (x : Fin n) :
-    ((Pi.single (M := fun (_ : Fin n) ↦ ℤ) a b x) : ℝ) =
-    (Pi.single (M := fun (_ : Fin n) ↦ ℝ) a b x) := by
-  by_cases h : a = x
-  · aesop
-  · aesop
+theorem Pi.apply_single' {ι : Type*} {M : ι → Type*} {N : ι → Type*}
+    [(i : ι) → Zero (M i)] [(i : ι) → Zero (N i)] [DecidableEq ι]
+    {F : ι → Type*} [∀ i, FunLike (F i) (M i) (N i)] [∀ i, ZeroHomClass (F i) (M i) (N i)]
+    (f' : (i : ι) → F i) (i : ι) (x : M i) (j : ι) :
+    f' j (single i x j) = single i (f' i x) j := by
+  apply Pi.apply_single _ (by simp)
+
+theorem Pi.intCast_single {ι : Type*} [DecidableEq ι] (a : ι) (b : ℤ) (x : ι) :
+    ((Pi.single (M := fun (_ : ι) ↦ ℤ) a b x) : ℝ) =
+    (Pi.single (M := fun (_ : ι) ↦ ℝ) a b x) := by
+  apply Pi.apply_single' (fun _ ↦ Int.castAddHom ℝ)
 
 theorem Pi.single_mul_left_const_apply {ι : Type*} {α : Type*}
     [MulZeroClass α] [DecidableEq ι] (i j : ι) (a : α) (f : α) :
-    single (M := fun _ ↦ α) i (a * f) j = single (M := fun _ ↦ α) i a j * f := by
-  by_cases h : i = j <;> aesop
+    single (M := fun _ ↦ α) i (a * f) j = single (M := fun _ ↦ α) i a j * f :=
+  single_mul_left_apply i j a (fun _ ↦ f)
 
-
--- Aristotle
 lemma abs_sin_add_le (a b : ℝ) : |sin (a + b)| ≤ |sin a| + |sin b| := by
-  rw [abs_le]
-  constructor
-  <;> cases abs_cases (sin a)
-  <;> cases abs_cases (sin b)
-  <;> nlinarith [abs_le.mp (Real.abs_cos_le_one a), abs_le.mp (Real.abs_cos_le_one b),
-    Real.sin_add a b]
+  rw [sin_add]
+  apply (abs_add_le _ _).trans
+  simp_rw [abs_mul]
+  apply add_le_add
+  · apply mul_le_of_le_one_right (abs_nonneg _) (abs_cos_le_one _)
+  · apply mul_le_of_le_one_left (abs_nonneg _) (abs_cos_le_one _)
 
 lemma abs_sin_sum_le {ι : Type*} (s : Finset ι) (a : ι → ℝ) :
     |sin (∑ i ∈ s, a i)| ≤ ∑ i ∈ s, |sin (a i)| := by
@@ -129,7 +132,7 @@ theorem cofinite_int_le_cobounded_real :
     fin_cases j
     · exact hc.1
     · exact hc.2
-  refine Filter.map_le_iff_le_comap.mpr fun s hs ↦ ?_;
+  refine Filter.map_le_iff_le_comap.mpr fun s hs ↦ ?_
   rw [mem_cofinite]
   obtain ⟨t, ht, hts⟩ := hs
   specialize hfinite tᶜ
@@ -138,57 +141,63 @@ theorem cofinite_int_le_cobounded_real :
   contrapose! hx
   aesop
 
--- Aristotle
 theorem map_polarCoord_eq_cobounded :
     Filter.map (polarCoord.symm) (atTop ×ˢ 𝓟 (Set.Icc (-π) π)) = Bornology.cobounded (ℝ × ℝ) := by
   refine le_antisymm ?_ ?_
-  · intro T hT;
-    obtain ⟨R, hR⟩ : ∃ R > 0, ∀ p : ℝ × ℝ, p.1^2 + p.2^2 ≥ R^2 → p ∈ T := by
-      have h_cobounded : ∃ R > 0, ∀ p : ℝ × ℝ, p.1^2 + p.2^2 ≥ R^2 → p ∈ T := by
-        have h_compl_bounded : Bornology.IsBounded (Tᶜ) :=
-          Bornology.isBounded_compl_iff.mpr hT
-        obtain ⟨ R, hR ⟩ := h_compl_bounded.exists_pos_norm_le;
-        norm_num [ Prod.norm_def ] at hR;
-        exact ⟨ R * 2, mul_pos hR.1 zero_lt_two,
-          fun p hp => Classical.not_not.1 fun h => by
-            nlinarith [ abs_le.mp ( hR.2 _ _ h |>.1 ), abs_le.mp ( hR.2 _ _ h |>.2 ) ] ⟩;
-      exact h_cobounded;
-    refine Filter.mem_prod_iff.mpr ⟨ Set.Ici R, Filter.mem_atTop_sets.mpr ⟨ R, fun x hx => hx ⟩,
-      Set.Icc ( -Real.pi ) Real.pi, Filter.mem_principal_self _, ?_ ⟩;
-    rintro ⟨ r, θ ⟩ ⟨ hr, hθ ⟩ ;
-    exact hR.2 _ ( by simpa [ mul_pow, Real.cos_sq' ] using by nlinarith [ Set.mem_Ici.mp hr ] )
-  · refine fun s hs ↦ ?_;
-    obtain ⟨R, hR⟩ : ∃ R > 0, ∀ r ≥ R, ∀ θ ∈ Set.Icc (-Real.pi) Real.pi,
+  · intro T hT
+    obtain ⟨R, hR0, hR⟩ : ∃ R > 0, ∀ p : ℝ × ℝ, p.1 ^ 2 + p.2 ^ 2 ≥ R ^ 2 → p ∈ T := by
+      have h_compl_bounded : Bornology.IsBounded (Tᶜ) := Bornology.isBounded_compl_iff.mpr hT
+      obtain ⟨R, hR0, hR⟩ := h_compl_bounded.exists_pos_norm_le
+      simp_rw [Prod.norm_def, norm_eq_abs, max_le_iff, Set.mem_compl_iff] at hR
+      refine ⟨R * 2, by simpa using hR0, fun p hp ↦ ?_⟩
+      contrapose! hp
+      obtain ⟨h1, h2⟩ := hR p hp
+      have h1 := sq_abs p.1 ▸ pow_le_pow_left₀ (abs_nonneg _) h1 2
+      have h2 := sq_abs p.2 ▸ pow_le_pow_left₀ (abs_nonneg _) h2 2
+      grw [h1, h2]
+      rw [← sub_pos]
+      suffices 0 < 2 * R ^ 2 by
+        convert! this using 1
+        ring
+      simpa [sq_pos_iff] using hR0.ne'
+    refine mem_prod_iff.mpr ⟨Set.Ici R, Ici_mem_atTop R, Set.Icc (-π) π, mem_principal_self _, ?_⟩
+    rintro ⟨r, θ⟩ ⟨hr, hθ⟩
+    suffices (r * cos θ, r * sin θ) ∈ T by simpa
+    apply hR
+    suffices R ^ 2 ≤ r ^ 2 by simpa [mul_pow, ← mul_add]
+    apply pow_le_pow_left₀ hR0.le hr
+  · refine fun s hs ↦ ?_
+    obtain ⟨R, hR0, hR⟩ : ∃ R > 0, ∀ r ≥ R, ∀ θ ∈ Set.Icc (-π) π,
         (r * Real.cos θ, r * Real.sin θ) ∈ s := by
-      rw [ Filter.mem_map, Filter.mem_prod_iff ] at hs;
-      norm_num +zetaDelta at *;
-      obtain ⟨ t₁, ⟨ a, ha ⟩, t₂, ht₂, h ⟩ := hs;
-      exact ⟨ Max.max a 1, by positivity,
-        fun r hr θ hθ₁ hθ₂ =>
-        h ( Set.mk_mem_prod ( ha r ( le_trans ( le_max_left _ _ ) hr ) ) ( ht₂ ⟨ hθ₁, hθ₂ ⟩ ) ) ⟩
-    have h_cobounded : ∀ p : ℝ × ℝ, Real.sqrt (p.1^2 + p.2^2) ≥ R → p ∈ s := by
-      intro p hp;
-      specialize hR;
-      have := hR.2 ( Real.sqrt ( p.1 ^ 2 + p.2 ^ 2 ) ) hp
-        ( Complex.arg ( p.1 + p.2 * Complex.I ) ) ?_
-      · simp_all only [mem_map, gt_iff_lt, ge_iff_le, Set.mem_Icc, and_imp, Complex.sin_arg,
-          Complex.add_im, Complex.ofReal_im, Complex.mul_im, Complex.ofReal_re, Complex.I_im,
-          mul_one, Complex.I_re, mul_zero, add_zero, zero_add]
-        by_cases h : p.1 + p.2 * Complex.I = 0
-        · simp_all [ Complex.ext_iff ]
-          linarith;
-        · simp_all [Complex.cos_arg, Complex.normSq, Complex.norm_def, sq ]
-          grind;
-      · exact ⟨ Complex.neg_pi_lt_arg _ |> le_of_lt, Complex.arg_le_pi _ ⟩;
-    refine Filter.mem_of_superset ?_ ?_ (x := { p : ℝ × ℝ | Real.sqrt ( p.1 ^ 2 + p.2 ^ 2 ) ≥ R })
-    · rw [ Metric.cobounded_eq_cocompact ];
-      rw [ Filter.mem_cocompact ];
-      refine ⟨ Metric.closedBall ( 0 : ℝ × ℝ ) R,
-        ProperSpace.isCompact_closedBall _ _, fun p hp => ?_ ⟩ ;
-      simp_all only [mem_map, gt_iff_lt, ge_iff_le, Set.mem_Icc, and_imp, Prod.forall,
-        Set.mem_compl_iff, Metric.mem_closedBall, dist_zero_right, not_le, Set.mem_setOf_eq]
-      exact le_trans hp.le ( max_le_iff.mpr ⟨
-        Real.abs_le_sqrt <| by nlinarith, Real.abs_le_sqrt <| by nlinarith ⟩ );
+      rw [Filter.mem_map, Filter.mem_prod_iff] at hs
+      simp only [gt_iff_lt, ge_iff_le, Set.mem_Icc, and_imp]
+      simp only [mem_atTop_sets, mem_principal] at hs
+      obtain ⟨t₁, ⟨a, ha⟩, t₂, ht₂, h⟩ := hs
+      refine ⟨max a 1, by positivity, fun r hr θ hθ₁ hθ₂ ↦ ?_⟩
+      exact h (Set.mk_mem_prod (ha r ((le_max_left _ _).trans hr)) (ht₂ ⟨hθ₁, hθ₂⟩))
+    have h_cobounded : ∀ p : ℝ × ℝ, R ≤ √(p.1 ^ 2 + p.2 ^ 2) → p ∈ s := by
+      intro p hp
+      by_cases h : p.1 + p.2 * Complex.I = 0
+      · rw [Complex.ext_iff] at h
+        obtain ⟨h1, h2⟩ : p.1 = 0 ∧ p.2 = 0 := by simpa using h
+        have : R ≤ 0 := by simpa [h1, h2] using hp
+        exact (this.not_gt hR0).elim
+      have h0 : √(p.1 ^ 2 + p.2 ^ 2) ≠ 0 := by
+        rw [← Complex.norm_add_mul_I, Complex.norm_eq_zero_iff.ne]
+        exact h
+      have := hR √(p.1 ^ 2 + p.2 ^ 2) hp (Complex.arg (p.1 + p.2 * Complex.I))
+        ⟨Complex.neg_pi_lt_arg _ |> le_of_lt, Complex.arg_le_pi _⟩
+      rw [Complex.sin_arg, Complex.cos_arg h, Complex.norm_add_mul_I,
+        mul_div_cancel₀ _ h0, mul_div_cancel₀ _ h0] at this
+      simpa using this
+    refine Filter.mem_of_superset ?_ ?_ (x := {p : ℝ × ℝ | √(p.1 ^ 2 + p.2 ^ 2) ≥ R})
+    · rw [Metric.cobounded_eq_cocompact, Filter.mem_cocompact]
+      refine ⟨Metric.closedBall (0 : ℝ × ℝ) R,
+        ProperSpace.isCompact_closedBall _ _, fun p hp ↦ ?_⟩
+      simp only [Set.mem_compl_iff, Metric.mem_closedBall, dist_zero_right, not_le] at hp
+      simp only [ge_iff_le, Set.mem_setOf_eq]
+      exact hp.le.trans (max_le_iff.mpr ⟨
+        Real.abs_le_sqrt <| by nlinarith, Real.abs_le_sqrt <| by nlinarith⟩)
     · grind
 
 theorem sin_cube_bound {x : ℝ} (hx : x ∈ Set.Icc (-1) 1) :
@@ -226,7 +235,6 @@ theorem sin_cube_bound {x : ℝ} (hx : x ∈ Set.Icc (-1) 1) :
   exact (sin_gt_sub_cube (lt_of_le_of_ne' h0 hx0) hx.2).le
 
 
--- Should Fix Asymptotics.isBigO_one_nat_atTop_iff
 theorem bounded_of_isBigO_cofinite {α : Type*} {f : α → ℝ} (hf : f =O[cofinite] (1 : α → ℝ)) :
     ∃ c : ℝ, ∀ x, |f x| ≤ c := by
   rw [isBigO_cofinite_iff (by simp)] at hf
