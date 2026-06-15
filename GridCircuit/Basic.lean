@@ -642,13 +642,13 @@ theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
     apply MeasurableSet.pi Set.countable_univ fun i _ ↦ measurableSet_Icc
   refine IntegrableOn.of_bound ?_ ?_ (2⁻¹ * ∑ k, (x k : ℝ) ^ 2) ?_
   · simp [Real.volume_Icc_pi]
-  · rw [← Measure.restrict_inter_add_diff _ (measurableSet_singleton 0)]
+  · rw [← Measure.restrict_inter_add_sdiff _ (measurableSet_singleton 0)]
     rw [Set.inter_eq_right.mpr (by simp [Pi.le_def, pi_nonneg])]
     rw [Measure.restrict_singleton', zero_add]
     refine ContinuousOn.aestronglyMeasurable ?_ (hm.diff (measurableSet_singleton 0))
     refine ContinuousOn.div₀ (by fun_prop) (by fun_prop) ?_
     intro i hi
-    simp only [Set.mem_diff, Set.mem_Icc, Set.mem_singleton_iff] at hi
+    simp only [Set.mem_sdiff, Set.mem_Icc, Set.mem_singleton_iff] at hi
     obtain ⟨⟨hi1, hi2⟩, hi3⟩ := hi
     contrapose! hi3 with hj
     rw [Finset.sum_eq_zero_iff_of_nonneg (fun j _ ↦ by simpa using cos_le_one (i j))] at hj
@@ -802,7 +802,7 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
       simp_rw [norm_zpow, norm_norm, ← Real.rpow_intCast] at hr
       push_cast at hr
       rw [← IntegrableOn,
-        ← Set.inter_union_diff (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) (Metric.ball 0 r),
+        ← Set.inter_union_sdiff (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) (Metric.ball 0 r),
         integrableOn_union]
       constructor
       · apply IntegrableOn.mono_set ?_ Set.inter_subset_right
@@ -1143,7 +1143,7 @@ theorem φ_equiv_log_2d :
   have hdiskmeasureable : MeasurableSet disk := by measurability
   conv_lhs =>
     ext x
-    rw [← integral_inter_add_diff hdiskmeasureable (φ_integrable_2d _),
+    rw [← integral_inter_add_sdiff hdiskmeasureable (φ_integrable_2d _),
       Set.inter_eq_right.mpr disk_subset']
     rw [mul_add]
     rw [add_sub_right_comm]
@@ -1160,21 +1160,21 @@ theorem φ_equiv_log_2d :
         norm_num))]
     rw [Pi.one_apply, abs_one, mul_one]
     apply setIntegral_mono ?_ ?_ ?_
-    · refine IntegrableOn.mono_set ?_ (Set.diff_subset_diff_right hdiskdisk)
+    · refine IntegrableOn.mono_set ?_ (Set.sdiff_subset_sdiff_right hdiskdisk)
       apply ContinuousOn.integrableOn_compact
         ((IsCompact.prod isCompact_Icc isCompact_Icc).diff hodisk)
       apply ContinuousOn.div (by fun_prop) (by fun_prop)
       intro p hp
-      rw [Set.mem_diff] at hp
+      rw [Set.mem_sdiff] at hp
       obtain ⟨hp1, hp2⟩ := hp
       contrapose! hp2
       simp [odisk, eq_zero_of_φ_2d_deno_le_zero hp1 hp2.le]
-    · refine IntegrableOn.mono_set ?_ (Set.diff_subset_diff_right hdiskdisk)
+    · refine IntegrableOn.mono_set ?_ (Set.sdiff_subset_sdiff_right hdiskdisk)
       apply ContinuousOn.integrableOn_compact
         ((IsCompact.prod isCompact_Icc isCompact_Icc).diff hodisk)
       apply ContinuousOn.div (by fun_prop) (by fun_prop)
       intro p hp
-      rw [Set.mem_diff] at hp
+      rw [Set.mem_sdiff] at hp
       obtain ⟨hp1, hp2⟩ := hp
       contrapose! hp2
       simp [odisk, eq_zero_of_φ_2d_deno_le_zero hp1 hp2.le]
