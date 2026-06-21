@@ -375,7 +375,7 @@ here.
 We compute the discrete Fourier transform of `unitCur 0`, then state the result using inverse
 Fourier transform to recover `unitCur 0`, which is a integral over a hypercube
 $$
-\varphi (x_0, x_1,\cdots,x_{n-1}) =
+I (x_0, x_1,\cdots,x_{n-1}) =
 \frac{1}{(2\pi)^n} \int_{[-\pi, \pi]^n} \left(\cos \sum_i x_i w_i\right) dw
 $$
 -/
