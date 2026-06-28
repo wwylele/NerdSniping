@@ -15,12 +15,15 @@ In this file we formalize the answer and related results to [xkcd's "nerd snipin
 
 Here we state the problem in a more general form in aribtrary dimensions: On the $n$-dimensional
 grid where each neighboring nodes are connected by an one-ohm resistor, what is the equivalent
-resistance between the two marked nodes?
+resistance between the two specified nodes?
 
 This file formalizes the following result
-* The translation to a formal mathematical problem and proof of the unique solution (if exists).
-* The general formula in arbitrary dimensions and for any pair of specific nodes.
-* Computation for the solution in the two-dimension case, and the answer to the original question.
+* `equivResistance`: formal mathematical model of the problem.
+* `equivResistance_eq`: proof of the unique solution (if exists).
+* `equivResistance_formula`: The general formula in arbitrary dimensions and for any pair of nodes.
+* `computeφ`: explicit computation for the solution in the two-dimension case.
+* `equivResistance_2_1`: the answer to the question in xkcd.
+
 
 Hopefully this can protect me from a car accident.
 -/
@@ -1463,6 +1466,13 @@ theorem equivResistance_eq_two_mul_φ [NeZero n] (x : Fin n → ℤ) :
   rw [equivResistance_eq (isValidCircuit_φ 0 x)]
   simp [two_mul]
 
+/-- We can also write out the full formula for the equivalent resistance. -/
+theorem equivResistance_formula [NeZero n] (x : Fin n → ℤ) :
+  equivResistance x =
+    some (2 * (2 * π)⁻¹ ^ n * ∫ (w : Fin n → ℝ) in Set.Icc (fun _ ↦ -π) (fun _ ↦ π),
+    (1 - Real.cos (∑ i, x i * w i)) / ∑ i, (2 - 2 * Real.cos (w i))) := by
+  rw [equivResistance_eq_two_mul_φ, φ, ← mul_assoc]
+
 /-- Applying this to the neighbor of the center, we get that the equivalent resistance between
 two neighboring points is $1 / n$. -/
 theorem equivResistance_off_center [NeZero n] (e : Fin n) :
@@ -2490,40 +2500,116 @@ theorem computeφ_eq (x y : ℕ) :
     exact φ_swap y x
   · simp only [computeφ, h, ↓reduceDIte, (getφTable (x + 1)).eq_φ]
 
+theorem equivResistance_eq_of_computeφ (x y : ℕ) (a b : ℚ) (h : computeφ x y = (a / 2, b / 2)) :
+    equivResistance ![ofNat(x), ofNat(y)] = some (a * π⁻¹ + b) := by
+  change equivResistance ![x, y] = some (a * π⁻¹ + b)
+  rw [equivResistance_eq_two_mul_φ, ← computeφ_eq, h]
+  simp
+  ring
+
+open Lean Qq in
+meta def realToRatExpr (e : Q(ℝ)) : MetaM (TSyntax `term) := do
+  match e with
+  | ~q(OfNat.ofNat $n (self := _)) =>
+    let some n := n.rawNatLit? | throwError "{n} is not a natural number"
+    .pure <| quote n
+  | ~q(OfNat.ofNat $m (self := _) / OfNat.ofNat $n (self := _)) =>
+    let some m := m.rawNatLit? | throwError "{m} is not a natural number"
+    let some n := n.rawNatLit? | throwError "{n} is not a natural number"
+    `($(quote m) / $(quote n))
+  | _ => throwError "Unsupported expression {e}"
+
+open Lean Lean.Elab.Tactic Qq in
+elab "comput_resistance" : tactic =>
+  withMainContext do
+    let e ← getMainTarget
+    let ⟨u, α, e⟩ ← inferTypeQ e
+    match u, α, e with
+    | 1, ~q(Prop), ~q(equivResistance ![ofNat($x), ofNat($y)] = some ($rhs)) =>
+      let some x := x.rawNatLit? | throwError "{x} is not a natural number"
+      let some y := y.rawNatLit? | throwError "{y} is not a natural number"
+      let x : TSyntax `term := quote x
+      let y : TSyntax `term := quote y
+      let (a, b) : TSyntax `term × TSyntax `term ← match rhs with
+      | ~q($a * π⁻¹ + $b) =>
+        let a ← realToRatExpr a
+        let b ← realToRatExpr b
+        .pure (a, b)
+      | ~q($a * π⁻¹ - $b) =>
+        let a ← realToRatExpr a
+        let b ← realToRatExpr b
+        let nb ← `(-$b)
+        .pure (a, nb)
+      | ~q($b - $a * π⁻¹) =>
+        let a ← realToRatExpr a
+        let b ← realToRatExpr b
+        let na ← `(-$a)
+        .pure (na, b)
+      | ~q($a * π⁻¹) =>
+        let a ← realToRatExpr a
+        .pure (a, quote 0)
+      | ~q($a) =>
+        let a ← realToRatExpr a
+        .pure (quote 0, a)
+      | _ => throwError "Unsupported expression"
+      evalTactic (← `(tactic| rw [equivResistance_eq_of_computeφ $x $y $a $b ?_]))
+      evalTactic (← `(tactic| · congrm some ?_; ring))
+      evalTactic (← `(tactic| · decide +kernel))
+    | _, _, _ => throwError "Unsupported expression"
+
 /-! Now we can verify the value of `φ` at any point in the first quadrant with just kernel
 reduction. -/
 
-theorem φ_2d_1_1 : φ ![1, 1] = π⁻¹ := by
-  suffices computeφ 1 1 = (1, 0) by
-    simpa [this] using (computeφ_eq 1 1).symm
-  decide
+theorem equivResistance_0_0 : equivResistance ![0, 0] = some (0) := by
+  comput_resistance
 
-theorem φ_2d_2_2 : φ ![2, 2] = (4 / 3) * π⁻¹ := by
-  suffices computeφ 2 2 = (4 / 3, 0) by
-    simpa [this] using (computeφ_eq 2 2).symm
-  decide +kernel
+theorem equivResistance_1_0 : equivResistance ![1, 0] = some (1 / 2) := by
+  comput_resistance
 
-theorem φ_2d_3_3 : φ ![3, 3] = (23 / 15) * π⁻¹ := by
-  suffices computeφ 3 3 = (23 / 15, 0) by
-    simpa [this] using (computeφ_eq 3 3).symm
-  decide +kernel
+theorem equivResistance_1_1 : equivResistance ![1, 1] = some (2 * π⁻¹) := by
+  comput_resistance
 
-theorem φ_2d_2_1 : φ ![2, 1] = 2 * π⁻¹ - 4⁻¹ := by
-  suffices computeφ 2 1 = (2, -4⁻¹) by
-    simpa [this, ← sub_eq_add_neg] using (computeφ_eq 2 1).symm
-  decide +kernel
+theorem equivResistance_2_0 : equivResistance ![2, 0] = some (2 - 4 * π⁻¹) := by
+  comput_resistance
 
-theorem φ_2d_42_7 : φ ![42, 7] =
-    76593647770027443784355182739895062090786294026 / 200507537800595025 * π⁻¹ -
-    486376034966331052956526218433 / 4 := by
-  suffices computeφ 42 7 =
-      (76593647770027443784355182739895062090786294026 / 200507537800595025,
-      -486376034966331052956526218433 / 4) by
-    simpa [this, ← sub_eq_add_neg, neg_div] using (computeφ_eq 42 7).symm
-  decide +kernel
+/-- ✅ This is the answer of the original question: the equivalent resistance is $4 / \pi - 1 / 2$.
+-/
+theorem equivResistance_2_1 : equivResistance ![2, 1] = some (4 * π⁻¹ - 1 / 2) := by
+  comput_resistance
 
-/-! Finally, let's answer the original question: the equivalent resistance is $4/\pi - 1/2$ -/
+theorem equivResistance_2_2 : equivResistance ![2, 2] = some (8 / 3 * π⁻¹) := by
+  comput_resistance
 
-theorem equivResistance_2_1 : equivResistance ![2, 1] = some (4 * π⁻¹ - 2⁻¹) := by
-  rw [equivResistance_eq_two_mul_φ, φ_2d_2_1]
-  congrm some $(by ring)
+theorem equivResistance_3_0 : equivResistance ![3, 0] = some (17 / 2 - 24 * π⁻¹) := by
+  comput_resistance
+
+theorem equivResistance_3_1 : equivResistance ![3, 1] = some (46 / 3 * π⁻¹ - 4) := by
+  comput_resistance
+
+theorem equivResistance_3_2 : equivResistance ![3, 2] = some (4 / 3 * π⁻¹ + 1 / 2) := by
+  comput_resistance
+
+theorem equivResistance_3_3 : equivResistance ![3, 3] = some (46 / 15 * π⁻¹) := by
+  comput_resistance
+
+theorem equivResistance_4_0 : equivResistance ![4, 0] = some (40 - 368 / 3 * π⁻¹) := by
+  comput_resistance
+
+theorem equivResistance_4_1 : equivResistance ![4, 1] = some (80 * π⁻¹ - 49 / 2) := by
+  comput_resistance
+
+theorem equivResistance_4_2 : equivResistance ![4, 2] = some (6 - 236 / 15 * π⁻¹) := by
+  comput_resistance
+
+theorem equivResistance_4_3 : equivResistance ![4, 3] = some (24 / 5 * π⁻¹ - 1 / 2) := by
+  comput_resistance
+
+theorem equivResistance_4_4 : equivResistance ![4, 4] = some (352 / 105 * π⁻¹) := by
+  comput_resistance
+
+/-- As a show case, the result can go really complicated for points far away. -/
+theorem equivResistance_42_7 :
+    equivResistance ![42, 7] =
+    some (153187295540054887568710365479790124181572588052 / 200507537800595025 * π⁻¹ -
+    486376034966331052956526218433 / 2) := by
+  comput_resistance
