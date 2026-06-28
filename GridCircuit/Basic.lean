@@ -994,28 +994,6 @@ theorem φ_integrable_2d' (x : Fin 2 → ℤ) :
     rw [show 4 - (2 * cos p.1 + 2 * cos p.2) = 2 * (1 - cos p.1) + 2 * (1 - cos p.2) by ring]
     exact add_le_add (two_mul_one_sub_cos_le _) (two_mul_one_sub_cos_le _)
 
-/-- Integrability related to Bessel function. -/
-theorem integrable_bessel (x1 x2 : ℝ) :
-    IntegrableOn (fun p ↦ (1 - cos (x1 * p.1 * cos (p.2 - x2))) / p.1)
-    (Set.Ioc 0 1 ×ˢ Set.Ioo (-π) π) (volume.prod volume) := by
-  apply IntegrableOn.of_bound (by simp) ?_ (x1 ^ 2 / 2) ?_
-  · apply AEStronglyMeasurable.restrict
-    apply StronglyMeasurable.aestronglyMeasurable
-    fun_prop
-  · refine ae_restrict_of_forall_mem (by measurability) fun p hp ↦ ?_
-    rw [Set.mem_prod] at hp
-    rw [norm_eq_abs, abs_div, div_le_iff₀ (by simpa using hp.1.1.ne')]
-    rw [abs_of_nonneg (by simpa using cos_le_one _)]
-    rw [abs_of_nonneg hp.1.1.le]
-    apply (one_sub_cos_le _).trans
-    rw [← mul_div_right_comm, div_le_div_iff_of_pos_right (by simp)]
-    rw [mul_pow, mul_pow, mul_assoc]
-    refine mul_le_mul_of_nonneg_left ?_ (sq_nonneg _)
-    trans p.1 ^ 2
-    · apply mul_le_of_le_one_right (sq_nonneg _)
-      simpa using abs_cos_le_one _
-    exact _root_.sq_le hp.1.1.le hp.1.2
-
 /-- The unit disk is a subset of the containing square. -/
 theorem disk_subset :
     {p | p.1 ^ 2 + p.2 ^ 2 ≤ 1} ⊆ Set.Icc (-(1 : ℝ)) 1 ×ˢ Set.Icc (-(1 : ℝ)) 1 := by

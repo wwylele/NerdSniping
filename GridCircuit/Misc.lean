@@ -4,7 +4,7 @@ public import Mathlib
 
 public section
 
-open Real Filter Asymptotics
+open Real Filter Asymptotics MeasureTheory
 
 theorem bddBelow_range_sub {α : Type*} {β : Type*} [LinearOrder β] [AddCommGroup β]
     [IsOrderedAddMonoid β]
