@@ -541,6 +541,14 @@ theorem φ_neg_1 (x y : ℤ) : φ ![x, -y] = φ ![x, y] := by
   · simp
 
 @[simp]
+theorem φ_abs_0 (x y : ℤ) : φ ![|x|, y] = φ ![x, y] := by
+  rcases abs_cases x with ⟨h, _⟩ | ⟨h, _⟩ <;> simp [h]
+
+@[simp]
+theorem φ_abs_1 (x y : ℤ) : φ ![x, |y|] = φ ![x, y] := by
+  rcases abs_cases y with ⟨h, _⟩ | ⟨h, _⟩ <;> simp [h]
+
+@[simp]
 theorem φ_neg (x : Fin n → ℤ) : φ (-x) = φ x := by
   unfold φ
   let f : (Fin n → ℝ) →L[ℝ] (Fin n → ℝ) :=
@@ -2500,15 +2508,22 @@ theorem computeφ_eq (x y : ℕ) :
     exact φ_swap y x
   · simp only [computeφ, h, ↓reduceDIte, (getφTable (x + 1)).eq_φ]
 
-theorem equivResistance_eq_of_computeφ (x y : ℕ) (a b : ℚ) (h : computeφ x y = (a / 2, b / 2)) :
-    equivResistance ![ofNat(x), ofNat(y)] = some (a * π⁻¹ + b) := by
-  change equivResistance ![x, y] = some (a * π⁻¹ + b)
-  rw [equivResistance_eq_two_mul_φ, ← computeφ_eq, h]
+/-- Compute `φ` at any point in 2D. -/
+def computeφInt (x y : ℤ) : ℚ × ℚ := computeφ x.natAbs y.natAbs
+
+theorem computeφInt_eq (x y : ℤ) :
+    (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) (computeφInt x y) = φ ![x, y] := by
+  simp [computeφInt, computeφ_eq]
+
+theorem equivResistance_eq_of_computeφInt (x y : ℤ) (a b : ℚ)
+    (h : computeφInt x y = (a / 2, b / 2)) :
+    equivResistance ![x, y] = some (a * π⁻¹ + b) := by
+  rw [equivResistance_eq_two_mul_φ, ← computeφInt_eq, h]
   simp
   ring
 
 open Lean Qq in
-meta def realToRatExpr (e : Q(ℝ)) : MetaM (TSyntax `term) := do
+meta def realToTerm (e : Q(ℝ)) : MetaM (TSyntax `term) := do
   match e with
   | ~q(OfNat.ofNat $n (self := _)) =>
     let some n := n.rawNatLit? | throwError "{n} is not a natural number"
@@ -2519,40 +2534,39 @@ meta def realToRatExpr (e : Q(ℝ)) : MetaM (TSyntax `term) := do
     `($(quote m) / $(quote n))
   | _ => throwError "Unsupported expression {e}"
 
-open Lean Lean.Elab.Tactic Qq in
-elab "comput_resistance" : tactic =>
+open Lean Lean.Elab.Tactic Lean Lean.Elab.Term Qq in
+/--
+The `compute_resistance` tactic can close a goal like `equivResistance ![_, _] = some (_)` using
+decision procedure.
+-/
+elab "compute_resistance" : tactic =>
   withMainContext do
     let e ← getMainTarget
     let ⟨u, α, e⟩ ← inferTypeQ e
     match u, α, e with
-    | 1, ~q(Prop), ~q(equivResistance ![ofNat($x), ofNat($y)] = some ($rhs)) =>
-      let some x := x.rawNatLit? | throwError "{x} is not a natural number"
-      let some y := y.rawNatLit? | throwError "{y} is not a natural number"
-      let x : TSyntax `term := quote x
-      let y : TSyntax `term := quote y
+    | 1, ~q(Prop), ~q(equivResistance ![$x, $y] = some ($rhs)) =>
       let (a, b) : TSyntax `term × TSyntax `term ← match rhs with
       | ~q($a * π⁻¹ + $b) =>
-        let a ← realToRatExpr a
-        let b ← realToRatExpr b
+        let a ← realToTerm a
+        let b ← realToTerm b
         .pure (a, b)
       | ~q($a * π⁻¹ - $b) =>
-        let a ← realToRatExpr a
-        let b ← realToRatExpr b
-        let nb ← `(-$b)
-        .pure (a, nb)
+        let a ← realToTerm a
+        let b ← realToTerm b
+        .pure (a, ← `(-$b))
       | ~q($b - $a * π⁻¹) =>
-        let a ← realToRatExpr a
-        let b ← realToRatExpr b
-        let na ← `(-$a)
-        .pure (na, b)
+        let a ← realToTerm a
+        let b ← realToTerm b
+        .pure (← `(-$a), b)
       | ~q($a * π⁻¹) =>
-        let a ← realToRatExpr a
+        let a ← realToTerm a
         .pure (a, quote 0)
       | ~q($a) =>
-        let a ← realToRatExpr a
+        let a ← realToTerm a
         .pure (quote 0, a)
       | _ => throwError "Unsupported expression"
-      evalTactic (← `(tactic| rw [equivResistance_eq_of_computeφ $x $y $a $b ?_]))
+      evalTactic (← `(tactic|
+        rw [equivResistance_eq_of_computeφInt $(← exprToSyntax x) $(← exprToSyntax y) $a $b ?_]))
       evalTactic (← `(tactic| · congrm some ?_; ring))
       evalTactic (← `(tactic| · decide +kernel))
     | _, _, _ => throwError "Unsupported expression"
@@ -2561,55 +2575,55 @@ elab "comput_resistance" : tactic =>
 reduction. -/
 
 theorem equivResistance_0_0 : equivResistance ![0, 0] = some (0) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_1_0 : equivResistance ![1, 0] = some (1 / 2) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_1_1 : equivResistance ![1, 1] = some (2 * π⁻¹) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_2_0 : equivResistance ![2, 0] = some (2 - 4 * π⁻¹) := by
-  comput_resistance
+  compute_resistance
 
 /-- ✅ This is the answer of the original question: the equivalent resistance is $4 / \pi - 1 / 2$.
 -/
 theorem equivResistance_2_1 : equivResistance ![2, 1] = some (4 * π⁻¹ - 1 / 2) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_2_2 : equivResistance ![2, 2] = some (8 / 3 * π⁻¹) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_3_0 : equivResistance ![3, 0] = some (17 / 2 - 24 * π⁻¹) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_3_1 : equivResistance ![3, 1] = some (46 / 3 * π⁻¹ - 4) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_3_2 : equivResistance ![3, 2] = some (4 / 3 * π⁻¹ + 1 / 2) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_3_3 : equivResistance ![3, 3] = some (46 / 15 * π⁻¹) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_4_0 : equivResistance ![4, 0] = some (40 - 368 / 3 * π⁻¹) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_4_1 : equivResistance ![4, 1] = some (80 * π⁻¹ - 49 / 2) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_4_2 : equivResistance ![4, 2] = some (6 - 236 / 15 * π⁻¹) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_4_3 : equivResistance ![4, 3] = some (24 / 5 * π⁻¹ - 1 / 2) := by
-  comput_resistance
+  compute_resistance
 
 theorem equivResistance_4_4 : equivResistance ![4, 4] = some (352 / 105 * π⁻¹) := by
-  comput_resistance
+  compute_resistance
 
 /-- As a show case, the result can go really complicated for points far away. -/
 theorem equivResistance_42_7 :
     equivResistance ![42, 7] =
     some (153187295540054887568710365479790124181572588052 / 200507537800595025 * π⁻¹ -
     486376034966331052956526218433 / 2) := by
-  comput_resistance
+  compute_resistance
