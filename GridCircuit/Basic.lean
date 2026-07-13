@@ -2112,9 +2112,13 @@ theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
     unfold f at h
     obtain h := tan_inj_of_lt_of_lt_pi_div_two (by
       grw [← ha.1]
-      simp [pi_pos]) ((div_lt_div_iff_of_pos_right (by simp)).mpr ha.2) (by
+      suffices 0 ≤ π / 2 by simpa
+      exact div_nonneg (pi_nonneg) (by simp))
+      ((div_lt_div_iff_of_pos_right (by simp)).mpr ha.2) (by
       grw [← hb.1]
-      simp [pi_pos]) ((div_lt_div_iff_of_pos_right (by simp)).mpr hb.2) h
+      suffices 0 ≤ π / 2 by simpa
+      exact div_nonneg (pi_nonneg) (by simp))
+      ((div_lt_div_iff_of_pos_right (by simp)).mpr hb.2) h
     simpa using h
   rw [← integral_image_eq_integral_abs_deriv_smul measurableSet_Ioo hderiv hinj g, hfs]
   rw [← integrableOn_image_iff_integrableOn_abs_deriv_smul measurableSet_Ioo hderiv hinj g, hfs]

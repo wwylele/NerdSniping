@@ -229,10 +229,14 @@ theorem sin_cube_bound {x : ℝ} (hx : x ∈ Set.Icc (-1) 1) :
   suffices x - sin x ≤ x ^ 3 / 4 by
     convert this using 1
     field
+  suffices x - sin x ≤ x ^ 3 / 6 by
+    apply this.trans
+    gcongr
+    norm_num
   rw [sub_le_comm]
   by_cases hx0 : x = 0
   · simp [hx0]
-  exact (sin_gt_sub_cube (lt_of_le_of_ne' h0 hx0) hx.2).le
+  exact (sin_gt_sub_cube (lt_of_le_of_ne' h0 hx0)).le
 
 
 theorem bounded_of_isBigO_cofinite {α : Type*} {f : α → ℝ} (hf : f =O[cofinite] (1 : α → ℝ)) :
