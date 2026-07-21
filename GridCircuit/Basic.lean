@@ -495,7 +495,9 @@ theorem φ_reflect (x : Fin n → ℤ) (i : Fin n) : φ (Function.update x i (-x
     unfold f
     rw [ContinuousLinearMap.coe_piMap', ← Set.pi_univ_Icc, Set.piMap_image_univ_pi]
     congrm Set.univ.pi fun j ↦ ?_
-    by_cases h : j = i <;> simp [h]
+    by_cases h : j = i
+    · simp [h, FunLike.coe_neg]
+    · simp [h]
   have hinj : Set.InjOn f (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) := by
     apply Function.Injective.injOn
     intro x y h
@@ -561,7 +563,7 @@ theorem φ_neg (x : Fin n → ℤ) : φ (-x) = φ x := by
     unfold f
     rw [ContinuousLinearMap.coe_piMap', ← Set.pi_univ_Icc, Set.piMap_image_univ_pi]
     congrm Set.univ.pi fun j ↦ ?_
-    simp
+    simp [FunLike.coe_neg]
   have hinj : Set.InjOn f (Set.Icc (fun _ ↦ -π) (fun _ ↦ π)) := by
     apply Function.Injective.injOn
     intro x y h
@@ -1012,7 +1014,7 @@ theorem disk_subset :
   suffices p.1 ^ 2 ≤ 1 ^ 2 ∧ p.2 ^ 2 ≤ 1 ^ 2 by
     rw [Set.mem_prod]
     convert this using 1 <;> simp [abs_le]
-  simp only [Set.mem_setOf_eq] at hp
+  simp only [Set.mem_ofPred_eq] at hp
   contrapose! +distrib hp
   obtain hp | hp := hp
   · exact lt_add_of_lt_of_nonneg (by simpa using hp) (sq_nonneg _)
@@ -1530,44 +1532,44 @@ theorem diamond_decomp :
     · apply Set.mem_union_right _ hp2
     rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc] at hp2
     push +distrib Not at hp2
-    simp only [diamond, Set.mem_setOf_eq] at hp
+    simp only [diamond, Set.mem_ofPred_eq] at hp
     obtain (hp2 | hp2) | (hp2 | hp2) := hp2
     · suffices p ∈ triangleL by simp [this]
-      simp only [triangleL, Set.mem_setOf_eq]
+      simp only [triangleL, Set.mem_ofPred_eq]
       refine ⟨hp2.le, ?_, ?_⟩ <;> linarith
     · suffices p ∈ triangleR by simp [this]
-      simp only [triangleR, Set.mem_setOf_eq]
+      simp only [triangleR, Set.mem_ofPred_eq]
       refine ⟨hp2.le, ?_, ?_⟩ <;> linarith
     · suffices p ∈ triangleD by simp [this]
-      simp only [triangleD, Set.mem_setOf_eq]
+      simp only [triangleD, Set.mem_ofPred_eq]
       refine ⟨hp2.le, ?_, ?_⟩ <;> linarith
     · suffices p ∈ triangleU by simp [this]
-      simp only [triangleU, Set.mem_setOf_eq]
+      simp only [triangleU, Set.mem_ofPred_eq]
       refine ⟨hp2.le, ?_, ?_⟩ <;> linarith
   · refine Set.union_subset (Set.union_subset (Set.union_subset (Set.union_subset ?_ ?_) ?_) ?_) ?_
     · intro p hp
-      simp only [triangleU, Set.mem_setOf_eq] at hp
+      simp only [triangleU, Set.mem_ofPred_eq] at hp
       obtain ⟨hp1, hp2, hp3⟩ := hp
-      simp only [diamond, Set.mem_setOf_eq]
+      simp only [diamond, Set.mem_ofPred_eq]
       refine ⟨hp2, ?_, hp3, ?_⟩ <;> linarith
     · intro p hp
-      simp only [triangleD, Set.mem_setOf_eq] at hp
+      simp only [triangleD, Set.mem_ofPred_eq] at hp
       obtain ⟨hp1, hp2, hp3⟩ := hp
-      simp only [diamond, Set.mem_setOf_eq]
+      simp only [diamond, Set.mem_ofPred_eq]
       refine ⟨?_, hp2, ?_, hp3⟩ <;> linarith
     · intro p hp
-      simp only [triangleL, Set.mem_setOf_eq] at hp
+      simp only [triangleL, Set.mem_ofPred_eq] at hp
       obtain ⟨hp1, hp2, hp3⟩ := hp
-      simp only [diamond, Set.mem_setOf_eq]
+      simp only [diamond, Set.mem_ofPred_eq]
       refine ⟨?_, hp2, hp3, ?_⟩ <;> linarith
     · intro p hp
-      simp only [triangleR, Set.mem_setOf_eq] at hp
+      simp only [triangleR, Set.mem_ofPred_eq] at hp
       obtain ⟨hp1, hp2, hp3⟩ := hp
-      simp only [diamond, Set.mem_setOf_eq]
+      simp only [diamond, Set.mem_ofPred_eq]
       refine ⟨hp2, ?_, ?_, hp3⟩ <;> linarith
     · intro p hp
       rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc] at hp
-      simp only [diamond, Set.mem_setOf_eq]
+      simp only [diamond, Set.mem_ofPred_eq]
       refine ⟨?_, ?_, ?_, ?_⟩ <;> linarith
 
 /-- The square is the union of the same four triangles after translation. -/
@@ -1587,46 +1589,46 @@ theorem square_comp :
           simp only [this]
           simp
         simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleR,
-          Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq]
+          Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add, Set.mem_ofPred_eq]
         refine ⟨?_, ?_, ?_⟩ <;> linarith
       · suffices p ∈ MeasurableEquiv.addRight (0, 2 * π) '' triangleD by
           simp only [this]
           simp
         simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleD,
-          Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq]
+          Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add, Set.mem_ofPred_eq]
         refine ⟨?_, ?_, ?_⟩ <;> linarith
     · rcases le_total p.1 (-p.2) with h2 | h2
       · suffices p ∈ MeasurableEquiv.addRight (0, -2 * π) '' triangleU by
           simp only [this]
           simp
         simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleU,
-          Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq]
+          Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add, Set.mem_ofPred_eq]
         refine ⟨?_, ?_, ?_⟩ <;> linarith
       · suffices p ∈ MeasurableEquiv.addRight (2 * π, 0) '' triangleL by
           simp only [this]
           simp
         simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleL,
-          Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq]
+          Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add, Set.mem_ofPred_eq]
         refine ⟨?_, ?_, ?_⟩ <;> linarith
   · refine Set.union_subset (Set.union_subset (Set.union_subset ?_ ?_) ?_) ?_
     · intro p hp
       simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleU,
-        Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq] at hp
+        Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add, Set.mem_ofPred_eq] at hp
       rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc]
       refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩⟩ <;> linarith
     · intro p hp
       simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleD,
-        Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq] at hp
+        Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add, Set.mem_ofPred_eq] at hp
       rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc]
       refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩⟩ <;> linarith
     · intro p hp
       simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleL,
-        Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq] at hp
+        Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add, Set.mem_ofPred_eq] at hp
       rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc]
       refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩⟩ <;> linarith
     · intro p hp
       simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk, triangleR,
-        Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add, Set.mem_setOf_eq] at hp
+        Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add, Set.mem_ofPred_eq] at hp
       rw [Set.mem_prod, Set.mem_Icc, Set.mem_Icc]
       refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩⟩ <;> linarith
 
@@ -1729,7 +1731,7 @@ theorem disjoint_U_D : AEDisjoint volume triangleU triangleD := by
 theorem disjoint_U_L : AEDisjoint volume triangleU triangleL := by
   suffices triangleU ∩ triangleL ⊆ {(-π, π)} from Measure.mono_null this (by simp)
   intro p hp
-  simp only [triangleU, triangleL, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  simp only [triangleU, triangleL, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
   rw [Set.mem_singleton_iff]
   ext
   · simp only
@@ -1740,7 +1742,7 @@ theorem disjoint_U_L : AEDisjoint volume triangleU triangleL := by
 theorem disjoint_D_L : AEDisjoint volume triangleD triangleL := by
   suffices triangleD ∩ triangleL ⊆ {(-π, -π)} from Measure.mono_null this (by simp)
   intro p hp
-  simp only [triangleD, triangleL, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  simp only [triangleD, triangleL, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
   rw [Set.mem_singleton_iff]
   ext
   · simp only
@@ -1751,7 +1753,7 @@ theorem disjoint_D_L : AEDisjoint volume triangleD triangleL := by
 theorem disjoint_U_R : AEDisjoint volume triangleU triangleR := by
   suffices triangleU ∩ triangleR ⊆ {(π, π)} from Measure.mono_null this (by simp)
   intro p hp
-  simp only [triangleU, triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  simp only [triangleU, triangleR, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
   rw [Set.mem_singleton_iff]
   ext
   · simp only
@@ -1762,7 +1764,7 @@ theorem disjoint_U_R : AEDisjoint volume triangleU triangleR := by
 theorem disjoint_D_R : AEDisjoint volume triangleD triangleR := by
   suffices triangleD ∩ triangleR ⊆ {(π, -π)} from Measure.mono_null this (by simp)
   intro p hp
-  simp only [triangleD, triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+  simp only [triangleD, triangleR, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
   rw [Set.mem_singleton_iff]
   ext
   · simp only
@@ -1782,7 +1784,7 @@ theorem disjoint_U_sq : AEDisjoint volume triangleU (Set.Icc (-π) π ×ˢ Set.I
     apply Measure.mono_null this
     simp [Measure.volume_eq_prod]
   intro p hp
-  simp only [triangleU, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_prod, Set.mem_Icc] at hp
+  simp only [triangleU, Set.mem_inter_iff, Set.mem_ofPred_eq, Set.mem_prod, Set.mem_Icc] at hp
   simp only [Set.mem_prod, Set.mem_univ, Set.mem_singleton_iff, true_and]
   linarith
 
@@ -1791,7 +1793,7 @@ theorem disjoint_D_sq : AEDisjoint volume triangleD (Set.Icc (-π) π ×ˢ Set.I
     apply Measure.mono_null this
     simp [Measure.volume_eq_prod]
   intro p hp
-  simp only [triangleD, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_prod, Set.mem_Icc] at hp
+  simp only [triangleD, Set.mem_inter_iff, Set.mem_ofPred_eq, Set.mem_prod, Set.mem_Icc] at hp
   simp only [Set.mem_prod, Set.mem_univ, Set.mem_singleton_iff, true_and]
   linarith
 
@@ -1800,7 +1802,7 @@ theorem disjoint_L_sq : AEDisjoint volume triangleL (Set.Icc (-π) π ×ˢ Set.I
     apply Measure.mono_null this
     simp [Measure.volume_eq_prod]
   intro p hp
-  simp only [triangleL, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_prod, Set.mem_Icc] at hp
+  simp only [triangleL, Set.mem_inter_iff, Set.mem_ofPred_eq, Set.mem_prod, Set.mem_Icc] at hp
   simp only [Set.mem_prod, Set.mem_singleton_iff, Set.mem_univ, and_true]
   linarith
 
@@ -1809,7 +1811,7 @@ theorem disjoint_R_sq : AEDisjoint volume triangleR (Set.Icc (-π) π ×ˢ Set.I
     apply Measure.mono_null this
     simp [Measure.volume_eq_prod]
   intro p hp
-  simp only [triangleR, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_prod, Set.mem_Icc] at hp
+  simp only [triangleR, Set.mem_inter_iff, Set.mem_ofPred_eq, Set.mem_prod, Set.mem_Icc] at hp
   simp only [Set.mem_prod, Set.mem_singleton_iff, Set.mem_univ, and_true]
   linarith
 
@@ -1821,8 +1823,8 @@ theorem disjoint_map_U_D : AEDisjoint volume (MeasurableEquiv.addRight (0, -2 * 
     simp
   intro p hp
   simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
-    triangleU, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
-    triangleD, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+    triangleU, Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add,
+    triangleD, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
   rw [Set.mem_singleton_iff]
   ext
   · simp only
@@ -1867,9 +1869,9 @@ theorem disjoint_map_U_L : AEDisjoint volume (MeasurableEquiv.addRight (0, -2 * 
     exact Measure.mono_null this null_volume_diag'
   intro p hp
   simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
-    triangleU, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
-    triangleL, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
-  rw [Set.mem_setOf_eq]
+    triangleU, Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add,
+    triangleL, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
+  rw [Set.mem_ofPred_eq]
   linarith
 
 theorem disjoint_map_D_L : AEDisjoint volume (MeasurableEquiv.addRight (0, 2 * π) '' triangleD)
@@ -1879,9 +1881,9 @@ theorem disjoint_map_D_L : AEDisjoint volume (MeasurableEquiv.addRight (0, 2 * �
     exact Measure.mono_null this null_volume_diag
   intro p hp
   simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
-    triangleD, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
-    triangleL, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
-  rw [Set.mem_setOf_eq]
+    triangleD, Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add,
+    triangleL, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
+  rw [Set.mem_ofPred_eq]
   linarith
 
 theorem disjoint_map_U_R : AEDisjoint volume (MeasurableEquiv.addRight (0, -2 * π) '' triangleU)
@@ -1891,9 +1893,9 @@ theorem disjoint_map_U_R : AEDisjoint volume (MeasurableEquiv.addRight (0, -2 * 
     exact Measure.mono_null this null_volume_diag
   intro p hp
   simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
-    triangleU, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
-    triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
-  rw [Set.mem_setOf_eq]
+    triangleU, Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add,
+    triangleR, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
+  rw [Set.mem_ofPred_eq]
   linarith
 
 theorem disjoint_map_D_R : AEDisjoint volume (MeasurableEquiv.addRight (0, 2 * π) '' triangleD)
@@ -1903,9 +1905,9 @@ theorem disjoint_map_D_R : AEDisjoint volume (MeasurableEquiv.addRight (0, 2 * �
     exact Measure.mono_null this null_volume_diag'
   intro p hp
   simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
-    triangleD, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
-    triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
-  rw [Set.mem_setOf_eq]
+    triangleD, Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add,
+    triangleR, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
+  rw [Set.mem_ofPred_eq]
   linarith
 
 theorem disjoint_map_L_R : AEDisjoint volume (MeasurableEquiv.addRight (2 * π, 0) '' triangleL)
@@ -1916,8 +1918,8 @@ theorem disjoint_map_L_R : AEDisjoint volume (MeasurableEquiv.addRight (2 * π, 
     simp
   intro p hp
   simp only [MeasurableEquiv.coe_addRight, Set.image_add_right, Prod.neg_mk,
-    triangleL, Set.preimage_setOf_eq, Prod.snd_add, Prod.fst_add,
-    triangleR, Set.mem_inter_iff, Set.mem_setOf_eq] at hp
+    triangleL, Set.preimage_ofPred_eq, Prod.snd_add, Prod.fst_add,
+    triangleR, Set.mem_inter_iff, Set.mem_ofPred_eq] at hp
   rw [Set.mem_singleton_iff]
   ext
   · simp only
@@ -2003,7 +2005,7 @@ theorem diamondRotate_injective : Function.Injective diamondRotate := by
 
 theorem diamond_eq_map : diamond = diamondRotate '' (Set.Icc (-π) π ×ˢ Set.Icc (-π) π) := by
   ext p
-  simp only [diamond, neg_mul, tsub_le_iff_right, neg_le_sub_iff_le_add, Set.mem_setOf_eq,
+  simp only [diamond, neg_mul, tsub_le_iff_right, neg_le_sub_iff_le_add, Set.mem_ofPred_eq,
     diamondRotate, ContinuousLinearMap.coe_mk', LinearMap.coe_mk, AddHom.coe_mk, Set.Icc_prod_Icc,
     Set.mem_image, Set.mem_Icc, Prod.exists, Prod.mk_le_mk]
   constructor

@@ -96,7 +96,7 @@ theorem integral_comp_polarCoord_symm_disk {E : Type*} [NormedAddCommGroup E] [N
     conv in fun p ↦ _ =>
       ext p
       rw [← Set.indicator_comp_right]
-      simp only [Set.preimage_setOf_eq, polarCoord_symm_apply, mul_pow, ← mul_add,
+      simp only [Set.preimage_ofPred_eq, polarCoord_symm_apply, mul_pow, ← mul_add,
         cos_sq_add_sin_sq, mul_one, sq_le_one_iff_abs_le_one]
       rw [show p.1 • {a | |a.1| ≤ 1}.indicator (f ∘ ↑polarCoord.symm) p =
         {a | |a.1| ≤ 1}.indicator (fun p ↦ p.1 • (f ∘ polarCoord.symm) p) p by
@@ -123,7 +123,7 @@ theorem cofinite_int_le_cobounded_real :
     obtain ⟨c, hc0, hc⟩ := hS.exists_pos_norm_le
     apply (Set.finite_Icc (⌈-c⌉ : Fin 2 → ℤ) ⌊c⌋).subset
     intro x hx
-    rw [Set.mem_setOf_eq] at hx
+    rw [Set.mem_ofPred_eq] at hx
     specialize hc _ hx
     rw [Prod.norm_def, max_le_iff, norm_eq_abs, norm_eq_abs, abs_le, abs_le] at hc
     rw [← Set.pi_univ_Icc, Set.mem_univ_pi]
@@ -195,7 +195,7 @@ theorem map_polarCoord_eq_cobounded :
       refine ⟨Metric.closedBall (0 : ℝ × ℝ) R,
         ProperSpace.isCompact_closedBall _ _, fun p hp ↦ ?_⟩
       simp only [Set.mem_compl_iff, Metric.mem_closedBall, dist_zero_right, not_le] at hp
-      simp only [ge_iff_le, Set.mem_setOf_eq]
+      simp only [ge_iff_le, Set.mem_ofPred_eq]
       exact hp.le.trans (max_le_iff.mpr ⟨
         Real.abs_le_sqrt <| by nlinarith, Real.abs_le_sqrt <| by nlinarith⟩)
     · grind
