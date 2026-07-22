@@ -1,7 +1,22 @@
 module
 
-public import GridCircuit.Misc
-public import GridCircuit.Bessel
+public import Mathlib.Data.Real.Basic
+public import Mathlib.Algebra.BigOperators.Group.Finset.Defs
+public import Mathlib.Data.Fintype.Basic
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+public import Mathlib.MeasureTheory.Integral.Bochner.Basic
+public import Mathlib.MeasureTheory.MeasurableSpace.Constructions
+public import Mathlib.MeasureTheory.Measure.Haar.OfBasis
+public import Mathlib.MeasureTheory.Integral.IntegrableOn
+
+import GridCircuit.Misc
+import GridCircuit.Bessel
+
+import Mathlib.Analysis.SpecialFunctions.Pow.Integral
+import Mathlib.LinearAlgebra.Matrix.Permutation
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Periodic
+import Mathlib.MeasureTheory.Integral.Pi
+import Mathlib.Analysis.Real.Pi.Bounds
 
 public section
 
@@ -2163,27 +2178,23 @@ theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
   ring
 
 /-- A sum-of-sin formula to be used soon. -/
-theorem sum_sin (n : ℕ) (x : ℝ) :
+theorem sum_sin' (n : ℕ) (x : ℝ) :
     ∑ k ∈ Finset.range n, sin ((2 * k + 1) * x) = (1 - cos (n * (2 * x))) / (2 * sin x) := by
-  by_cases hx : sin x = 0
-  · suffices ∑ k ∈ Finset.range n, sin ((2 * k + 1) * x) = 0 by simpa [hx]
-    refine Finset.sum_eq_zero fun k _ ↦ ?_
-    rw [sin_eq_zero_iff] at hx ⊢
-    obtain ⟨n, rfl⟩ := hx
-    use (2 * k + 1) * n
-    push_cast
-    ring
-  rw [eq_div_iff (by simpa using hx)]
-  rw [Finset.sum_mul]
-  simp_rw [mul_left_comm _ (2 : ℝ) _, ← mul_assoc, two_mul_sin_mul_sin]
-  simp_rw [show ∀ k : ℕ, cos ((2 * k + 1) * x - x) - cos ((2 * k + 1) * x + x) =
-      -cos ((k + 1 : ℕ) * (2 * x)) - -cos (k * (2 * x)) by
-    intro k
-    push_cast
-    ring_nf]
-  rw [Finset.sum_range_sub (fun k ↦ -cos (k * (2 * x)))]
-  simp only [Nat.cast_zero, zero_mul, cos_zero]
+  by_cases! h : ∃ (k : ℤ), 2 * x = k * (2 * π)
+  · obtain ⟨k, hk⟩ := h
+    rw [mul_left_comm _ 2, mul_right_inj' (by simp)] at hk
+    rw [hk]
+    simp_rw [← mul_assoc]
+    norm_cast
+    simp_rw [Real.sin_int_mul_pi]
+    simp
+  simp_rw [show (k : ℕ) → (2 * k + 1) * x = (2 * x * k + x) by intro k; ring]
+  rw [Real.sum_sin _ h]
+  rw [mul_comm (2 : ℝ) (sin x), ← div_div, eq_div_iff_mul_eq (by simp)]
+  rw [mul_comm _ (2 : ℝ), ← mul_div_assoc, ← mul_assoc, Real.two_mul_sin_mul_sin]
   ring_nf
+  rw [cos_zero]
+  ring
 
 /-- Formula for `φ` on the diagonal in the 2D case. -/
 theorem φ_2d_diagonal (n : ℕ) : φ (![n, n]) = π⁻¹ * ∑ k ∈ Finset.range n, (2 * k + 1 : ℝ)⁻¹ := by
@@ -2236,7 +2247,7 @@ theorem φ_2d_diagonal (n : ℕ) : φ (![n, n]) = π⁻¹ * ∑ k ∈ Finset.ran
           (lt_of_lt_of_le (by simp [two_mul, pi_pos]) hx.1)
           (lt_of_le_of_lt hx.2 (by simp [two_mul, pi_pos]))]
         exact h2
-  simp_rw [← mul_div_assoc, mul_div_right_comm, integral_mul_const, ← sum_sin]
+  simp_rw [← mul_div_assoc, mul_div_right_comm, integral_mul_const, ← sum_sin']
   rw [integral_finsetSum _ (fun k _ ↦ ContinuousOn.integrableOn_Icc (by fun_prop))]
   rw [Finset.mul_sum, Finset.sum_mul, Finset.mul_sum]
   congr with k

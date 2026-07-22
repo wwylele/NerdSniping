@@ -1,6 +1,10 @@
 module
 
-public import Mathlib
+public import Mathlib.Analysis.SpecialFunctions.PolarCoord
+
+import Mathlib.Analysis.Real.Pi.Bounds
+import Mathlib.Data.Pi.Interval
+import Mathlib.Algebra.Order.Interval.Set.Group
 
 public section
 

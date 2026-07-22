@@ -1,7 +1,9 @@
 module
 
-public import Mathlib
+public import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
+
 import GridCircuit.Misc
+import Mathlib.Analysis.Real.Pi.Bounds
 
 public section
 
