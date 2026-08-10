@@ -892,7 +892,7 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
         rw [Real.abs_sin_eq_sin_abs_of_abs_le_pi (by simpa [abs_div] using habs)]
         simp [abs_div]
     · apply Eventually.of_forall fun x ↦ ?_
-      simp +contextual [zpow_eq_zero_iff]
+      simp +contextual
   · refine Eventually.of_forall fun x ↦ ?_
     have hnonneg : 0 ≤ ∑ i, (1 - cos (x i)) := by
       refine Finset.sum_nonneg fun i _ ↦ ?_
@@ -2445,9 +2445,9 @@ def growφTable (input : φTable) : φTable :=
           next hj2 =>
           split
           next hj1 =>
-            haveI : j < input.data[n + 1].length := by
+            have : j < input.data[n + 1].length := by
               simp [input.length_eq (n + 1), hj1]
-            haveI : j - 1 < input.data[n + 1].length := by
+            have : j - 1 < input.data[n + 1].length := by
               simp [input.length_eq (n + 1), hj1]
             suffices 2 * (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][j] -
                 (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][j - 1] = φ ![i, j] by
@@ -2462,16 +2462,16 @@ def growφTable (input : φTable) : φTable :=
               φ_swap n (n + 1), φ_swap (n + 1) (n + 2)] at h
             linear_combination h
           next hj1 =>
-            haveI : j < input.data[n + 1].length := by
+            have : j < input.data[n + 1].length := by
               rw [input.length_eq (n + 1)]
               grind
-            haveI : j + 1 < input.data[n + 1].length := by
+            have : j + 1 < input.data[n + 1].length := by
               rw [input.length_eq (n + 1)]
               grind
-            haveI : j - 1 < input.data[n + 1].length := by
+            have : j - 1 < input.data[n + 1].length := by
               rw [input.length_eq (n + 1)]
               grind
-            haveI : j < input.data[n].length := by
+            have : j < input.data[n].length := by
               rw [input.length_eq n]
               grind
             suffices 4 * (fun (p : ℚ × ℚ) ↦ p.1 * π⁻¹ + p.2) input.data[n + 1][j] -
