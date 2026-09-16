@@ -273,7 +273,7 @@ theorem asymptotic_bessel :
     rw [log_one, sub_zero]
   rw [intervalIntegral.integral_const_mul, hintinv, mul_sub, inv_mul_cancel_left₀ (by simp),
     sub_sub_cancel_left, abs_neg, abs_mul]
-  refine mul_le_mul_of_nonneg_left ?_ (by simp)
+  refine mul_le_mul_of_nonneg_left ?_ (abs_nonneg _)
   trans ∫ r in 1..x, (4 + 4 * π) / r ^ (3 / 2 : ℝ)
   · rw [← norm_eq_abs]
     apply intervalIntegral.norm_integral_le_of_norm_le hx
@@ -289,7 +289,7 @@ theorem asymptotic_bessel :
       apply ContinuousOn.div (by fun_prop) ?_ (fun r hr ↦ (rpow_pos_of_pos (by grind) _).ne.symm)
       apply ContinuousOn.rpow_const (by fun_prop) (by grind)
   rw [intervalIntegral.integral_of_le hx]
-  refine setIntegral_mono_set ?_ ?_ (Eventually.of_forall (by simpa using! Set.Ioc_subset_Ioi_self))
+  refine setIntegral_mono_set ?_ ?_ (Eventually.of_forall (by simp; grind))
   · simp_rw [div_eq_mul_inv (4 + 4 * π)]
     apply Integrable.const_mul
     suffices IntegrableOn (fun (x : ℝ) ↦ (x ^ (-(3 / 2) : ℝ))) (Set.Ioi 1) by

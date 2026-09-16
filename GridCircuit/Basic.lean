@@ -1,6 +1,6 @@
 module
 
-public import Mathlib.Data.Real.Basic
+public import Mathlib.Basic.Real.Basic
 public import Mathlib.Algebra.BigOperators.Group.Finset.Defs
 public import Mathlib.Data.Fintype.Basic
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
@@ -2036,16 +2036,18 @@ theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
   have h1a : 1 + a ≠ 0 := by grind
   have hlt1a : 0 < 1 + a := by grind
   have h1a' : 1 - a ≠ 0 := by grind
+  have hax (x : ℝ) : a * cos x < 1 := by
+    apply (abs_lt.mp ?_).2
+    rw [abs_mul]
+    exact (mul_le_of_le_one_right (abs_nonneg a) (abs_cos_le_one _)).trans_lt
+      (abs_lt.mpr ⟨h1, h2⟩)
   rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le (by simp [pi_nonneg])]
   have hcont : Continuous (fun x ↦ (2 - 2 * a * cos x)⁻¹) :=
       Continuous.inv₀ (by fun_prop) (fun x ↦ by
       apply ne_of_gt
       rw [sub_pos, mul_assoc]
       simp only [Nat.ofNat_pos, mul_lt_iff_lt_one_right]
-      apply (abs_lt.mp ?_).2
-      rw [abs_mul]
-      apply mul_lt_one_of_nonneg_of_lt_one_left (abs_nonneg a)
-        (abs_lt.mpr ⟨h1, h2⟩) (abs_cos_le_one _)
+      apply hax
     )
   rw [← intervalIntegral.integral_add_adjacent_intervals (b := 0)
     (hcont.intervalIntegrable _ _) (hcont.intervalIntegrable _ _)]
@@ -2063,10 +2065,7 @@ theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
     (Continuous.integrableOn_Ioc <| Continuous.inv₀ (by fun_prop) (fun x ↦ by
       apply ne_of_gt
       rw [sub_pos]
-      apply (abs_lt.mp ?_).2
-      rw [abs_mul]
-      apply mul_lt_one_of_nonneg_of_lt_one_left (abs_nonneg a)
-        (abs_lt.mpr ⟨h1, h2⟩) (abs_cos_le_one _)
+      apply hax
     )).mono_set (Set.Ioo_subset_Ioc_self)
   let g (t : ℝ) := 2 / (1 + a) / ((1 - a) / (1 + a) + t ^ 2)
   let f (x : ℝ) := tan (x / 2)
