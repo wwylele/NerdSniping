@@ -50,23 +50,6 @@ theorem Pi.single_mul_left_const_apply {ι : Type*} {α : Type*}
     single (M := fun _ ↦ α) i (a * f) j = single (M := fun _ ↦ α) i a j * f :=
   single_mul_left_apply i j a (fun _ ↦ f)
 
-lemma abs_sin_add_le (a b : ℝ) : |sin (a + b)| ≤ |sin a| + |sin b| := by
-  rw [sin_add]
-  apply (abs_add_le _ _).trans
-  simp_rw [abs_mul]
-  apply add_le_add
-  · apply mul_le_of_le_one_right (abs_nonneg _) (abs_cos_le_one _)
-  · apply mul_le_of_le_one_left (abs_nonneg _) (abs_cos_le_one _)
-
-lemma abs_sin_sum_le {ι : Type*} (s : Finset ι) (a : ι → ℝ) :
-    |sin (∑ i ∈ s, a i)| ≤ ∑ i ∈ s, |sin (a i)| := by
-  induction s using Finset.cons_induction with
-  | empty => simp
-  | cons a s h ih =>
-    simp only [Finset.sum_cons]
-    apply (abs_sin_add_le _ _).trans
-    grw [ih]
-
 lemma abs_sin_nat_mul_le (m : ℕ) (y : ℝ) :
     |sin (m * y)| ≤ m * |sin y| := by
   induction m with
@@ -75,7 +58,6 @@ lemma abs_sin_nat_mul_le (m : ℕ) (y : ℝ) :
     push_cast
     rw [add_one_mul, add_one_mul]
     grw [abs_sin_add_le, ih]
-
 
 theorem sin_inequality {n : ℕ} (x : Fin n → ℤ) (y : Fin n → ℝ) :
     sin (∑ i, x i * y i) ^ 2 ≤ (∑ k, (x k : ℝ) ^ 2) * ∑ i, sin (y i) ^ 2 := by

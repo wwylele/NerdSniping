@@ -2103,7 +2103,9 @@ theorem integral_sub_cos_inv {a : ℝ} (h1 : -1 < a) (h2 : a < 1) :
     rw [div_add' _ _ _ h1a, div_div_div_cancel_right₀ h1a]
     rw [one_add_div (by positivity), add_add_sub_cancel]
     rw [← mul_div_mul_comm, one_mul, one_add_one_eq_two]
-    field
+    rw [div_mul, div_div_cancel₀ (by simp), inv_eq_iff_eq_inv, inv_div, mul_div,
+      one_sub_div (by positivity)]
+    congrm $(by ring) / _
   rw [setIntegral_congr_fun measurableSet_Ioo heq]
   replace hintegrable := hintegrable.congr_fun heq measurableSet_Ioo
   have hderiv : ∀ x ∈ Set.Ioo 0 π, HasDerivWithinAt f (f' x) (Set.Ioo 0 π) x := by
