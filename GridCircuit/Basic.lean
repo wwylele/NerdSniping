@@ -678,7 +678,7 @@ theorem integrable_φ [NeZero n] (x : Fin n → ℤ) :
     intro i hi
     simp only [Set.mem_sdiff, Set.mem_Icc, Set.mem_singleton_iff] at hi
     obtain ⟨⟨hi1, hi2⟩, hi3⟩ := hi
-    contrapose! hi3 with hj
+    contrapose hi3 with hj
     rw [Finset.sum_eq_zero_iff_of_nonneg (fun j _ ↦ by simpa using cos_le_one (i j))] at hj
     ext j
     rw [Pi.zero_apply, ← cos_eq_one_iff_of_lt_of_lt ((lt_of_lt_of_le (by grind [pi_pos]) (hi1 j)))
@@ -878,7 +878,7 @@ theorem abs_φ_le (hn : 3 ≤ n) (x : Fin n → ℤ) :
         obtain ⟨i, _, hi⟩ :
             ∃ i ∈ (Finset.univ : Finset (Fin n)), Finset.univ.sup (‖w ·‖₊) = ‖w i‖₊ :=
           Finset.exists_mem_eq_sup _ (by simp) _
-        have hnorm : ‖w‖₊ = ‖w i‖₊ := hi ▸ Pi.nnnorm_def w
+        have hnorm : ‖w‖₊ = ‖w i‖₊ := hi ▸ Pi.nnNorm_def w
         have hnorm : ‖w‖ = |w i| := by simpa using congr(((↑) : _ → ℝ) $hnorm)
         rw [hnorm] at ⊢
         apply (Finset.single_le_sum (by simp [sq_nonneg]) (Finset.mem_univ i)).trans
@@ -1097,7 +1097,7 @@ theorem φ_integral_change_deno :
     2 * (1 - cos (2 * (w.1 / 2))) + 2 * (1 - cos (2 * (w.2 / 2))) by ring_nf]
   rw [cos_two_mul_eq_one_sub, cos_two_mul_eq_one_sub, sub_sub_cancel, sub_sub_cancel]
   have : sin (w.1 / 2) ^ 2 + sin (w.2 / 2) ^ 2 ≠ 0 := by
-    contrapose! h0
+    contrapose h0
     rw [add_eq_zero_iff_of_nonneg (sq_nonneg _) (sq_nonneg _), sq_eq_zero_iff, sq_eq_zero_iff] at h0
     rw [sin_eq_zero_iff_of_lt_of_lt (lt_trans (by simpa using honepi) hw1l) (hw1r.trans honepi),
       sin_eq_zero_iff_of_lt_of_lt (lt_trans (by simpa using honepi) hw2l) (hw2r.trans honepi)] at h0
@@ -1105,7 +1105,7 @@ theorem φ_integral_change_deno :
     · simpa using h0.1
     · simpa using h0.2
   have : w.1 ^ 2 + w.2 ^ 2 ≠ 0 := by
-    contrapose! h0
+    contrapose h0
     rw [add_eq_zero_iff_of_nonneg (sq_nonneg _) (sq_nonneg _), sq_eq_zero_iff, sq_eq_zero_iff] at h0
     ext
     · simpa using h0.1
@@ -1173,7 +1173,7 @@ theorem φ_equiv_log_2d :
       intro p hp
       rw [Set.mem_sdiff] at hp
       obtain ⟨hp1, hp2⟩ := hp
-      contrapose! hp2
+      contrapose hp2
       simp [odisk, eq_zero_of_φ_2d_deno_le_zero hp1 hp2.le]
     · refine IntegrableOn.mono_set ?_ (Set.sdiff_subset_sdiff_right hdiskdisk)
       apply ContinuousOn.integrableOn_compact
@@ -1182,7 +1182,7 @@ theorem φ_equiv_log_2d :
       intro p hp
       rw [Set.mem_sdiff] at hp
       obtain ⟨hp1, hp2⟩ := hp
-      contrapose! hp2
+      contrapose hp2
       simp [odisk, eq_zero_of_φ_2d_deno_le_zero hp1 hp2.le]
     · intro p
       refine div_le_div_of_nonneg_right ?_ ?_
@@ -1333,7 +1333,7 @@ theorem log_shift_equiv (a b : ℤ) :
       · simp
   rw [abs_of_nonneg h0]
   have habsq : (x 0 + a : ℝ) ^ 2 + (x 1 + b : ℝ) ^ 2 ≠ 0 := by
-    contrapose! h
+    contrapose h
     rw [add_eq_zero_iff_of_nonneg (sq_nonneg _) (sq_nonneg _), sq_eq_zero_iff, sq_eq_zero_iff] at h
     norm_cast at h
     suffices x = ![-a, -b] by simp [this]
@@ -1344,7 +1344,7 @@ theorem log_shift_equiv (a b : ℤ) :
     · simp
       linear_combination h.2
   have hsq : (x 0 : ℝ) ^ 2 + (x 1 : ℝ) ^ 2 ≠ 0 := by
-    contrapose! h
+    contrapose h
     rw [add_eq_zero_iff_of_nonneg (sq_nonneg _) (sq_nonneg _), sq_eq_zero_iff, sq_eq_zero_iff] at h
     norm_cast at h
     suffices x = ![0, 0] by simp [this]

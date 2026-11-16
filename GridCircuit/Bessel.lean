@@ -214,7 +214,7 @@ theorem besselJ_bound {r : ℝ} (hr : 1 ≤ r) :
 theorem asymptotic_bessel :
     (fun x ↦ ((2 * π)⁻¹ * ∫ r in 0..x, ∫ θ in -π..π, (1 - cos (r * cos θ)) / r) - log x)
     =O[atTop] (1 : ℝ → ℝ) := by
-  simp_rw [IsBigO_def, IsBigOWith_def]
+  rw [isBigO_iff]
   use |(2 * π)⁻¹ * ∫ (x : ℝ) in 0..1, ∫ (θ : ℝ) in -π..π, (1 - cos (x * cos θ)) / x| +
     (|(2 * π)⁻¹| * ∫ (x : ℝ) in Ioi 1, (4 + 4 * π) / x ^ (3 / 2 : ℝ))
   simp_rw [Pi.one_apply, norm_one, mul_one, norm_eq_abs]

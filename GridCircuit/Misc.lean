@@ -124,7 +124,7 @@ theorem cofinite_int_le_cobounded_real :
   specialize hfinite tᶜ
   simp only [Bornology.isBounded_compl_iff, Set.mem_compl_iff] at hfinite
   refine (hfinite ht).subset fun x hx ↦ ?_
-  contrapose! hx
+  contrapose hx
   aesop
 
 theorem map_polarCoord_eq_cobounded :
